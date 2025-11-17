@@ -836,14 +836,9 @@ input WINDOW_TYPE InpWindowType = WINDOW_BLACKMAN;  // Tipo de janela FFT
 
 enum PHASE_TYPE { PHASE_NONE=0, PHASE_INFRA=1, PHASE_SUPRA=2 };
 
-// ETA calculation mode (combobox input)
-enum ETA_MODE
-{
-    ETA_PHASE_NEXT_EXTREMUM = 0,  // Estimate by instantaneous phase to next extremum
-    ETA_REALFFT = 1               // Estimate by FFT group delay at dominant bin
-};
-
-input ETA_MODE InpETAMode = ETA_PHASE_NEXT_EXTREMUM;  // ETA calculation method
+// ETA desativada nesta variante nodetrend
+enum ETA_MODE { ETA_DISABLED = 0 };
+input ETA_MODE InpETAMode = ETA_DISABLED;
 
 //--- Inputs de Detec??o de Sinal e Visualiza??o
 input bool   InpShowETALines      = true;  // Mostrar linhas verticais de proje??o ETA
@@ -1334,32 +1329,8 @@ double CalculateScientificETASeconds(int fft_index, double phase_length_seconds,
 //+------------------------------------------------------------------+
 double ComputeETA_PhaseNextExtremum(int i, int c, const double &cycle_buffer[], double period_bars, double seconds_per_bar)
 {
-    if(period_bars <= 0.0 || seconds_per_bar <= 0.0) return 0.0;
-    int q = (int)MathMax(1.0, MathRound(period_bars / 4.0));
-    if(i - q < 0) return 0.0;
-
-    double I = cycle_buffer[i];
-    double Q = cycle_buffer[i - q]; // ~90° shift for near-monocomponent signal
-
-    double phi = MathArctan2(Q, I);            // [-π, π]
-    if(phi < 0.0) phi += 2.0 * M_PI;           // [0, 2π)
-
-    double k = MathCeil(phi / M_PI);           // next multiple of π ahead
-    double target = k * M_PI;
-    double dphi = target - phi;                 // [0, π]
-
-    // Convert phase to bars using ω = 2π/period
-    double period_seconds = period_bars * seconds_per_bar;
-    if(period_seconds <= 0.0) return 0.0;
-
-    double eta_seconds = (dphi / (2.0 * M_PI)) * period_seconds;
-
-    // Clamp to reasonable bounds
-    if(eta_seconds < 0.0) eta_seconds = 0.0;
-    double max_eta_seconds = period_seconds * 1.5;
-    if(eta_seconds > max_eta_seconds) eta_seconds = max_eta_seconds;
-
-    return eta_seconds;
+    // ETA desativada nesta variante
+    return 0.0;
 }
 
 //+------------------------------------------------------------------+
@@ -1370,44 +1341,8 @@ double ComputeETA_PhaseNextExtremum(int i, int c, const double &cycle_buffer[], 
 //+------------------------------------------------------------------+
 double ComputeETA_RealFFT(int fft_index, double period_bars, int n, double seconds_per_bar)
 {
-    if(period_bars <= 0.0 || n <= 0 || seconds_per_bar <= 0.0) return 0.0;
-    // Need a valid interior bin to compute central difference
-    if(fft_index < 0) return 0.0;
-
-    int phase_count = ArraySize(fft_unwrapped_phase);
-    int max_n = (phase_count > 0) ? MathMin(n, phase_count) : n;
-    if(fft_index >= max_n) return 0.0;
-
-    double delta_omega = (max_n > 0) ? (2.0 * M_PI / (double)max_n) : 0.0;
-    if(delta_omega == 0.0) return 0.0;
-
-    // Numerical derivative of unwrapped phase along frequency bins
-    double dphi = 0.0;
-    if(fft_index > 0 && fft_index < max_n - 1)
-        dphi = (fft_unwrapped_phase[fft_index + 1] - fft_unwrapped_phase[fft_index - 1]) / 2.0;
-    else if(fft_index == 0 && max_n >= 2)
-        dphi = (fft_unwrapped_phase[1] - fft_unwrapped_phase[0]);
-    else if(fft_index == max_n - 1 && max_n >= 2)
-        dphi = (fft_unwrapped_phase[max_n - 1] - fft_unwrapped_phase[max_n - 2]);
-    else
-        dphi = 0.0;
-
-    // Group delay in samples (bars/sample rate = 1 bar per sample)
-    double tau_g = -(dphi / delta_omega);
-
-    // Clamp to reasonable bounds relative to this cycle's period (bars)
-    double max_eta_bars = period_bars * 1.5;
-    if(tau_g >  max_eta_bars) tau_g =  max_eta_bars;
-    if(tau_g < -max_eta_bars) tau_g = -max_eta_bars;
-
-    double eta_seconds = MathAbs(tau_g) * seconds_per_bar;
-
-    double period_seconds = period_bars * seconds_per_bar;
-    double max_eta_seconds = period_seconds * 1.5;
-    if(eta_seconds > max_eta_seconds)
-        eta_seconds = max_eta_seconds;
-
-    return eta_seconds;
+    // ETA desativada nesta variante
+    return 0.0;
 }
 
 //+------------------------------------------------------------------+
@@ -2501,15 +2436,7 @@ void ShowCycleListDebug()
 
         // Optional: show RealFFT group delay when mode is enabled
         string extra = "";
-        if(InpETAMode == ETA_REALFFT)
-        {
-            double nominal_seconds = (double)PeriodSeconds((ENUM_TIMEFRAMES)_Period);
-            if(nominal_seconds <= 0.0) nominal_seconds = 60.0;
-            double tg_seconds = ComputeETA_RealFFT(bin, per, n, nominal_seconds);
-            double tg_bars = (nominal_seconds > 0.0) ? tg_seconds / nominal_seconds : 0.0;
-            // tg is measured in bars; include unit for clarity
-            extra = StringFormat(" | tg=%.1f bars", tg_bars);
-        }
+    // ETA desativada
 
         s += StringFormat(
             "C%d: P=%.1f | bin=%d | f=%.6f cyc/bar | cyclesWin=%.0f | Pow=%.2f | Leak=%s%s\n",
@@ -2894,57 +2821,8 @@ void UpdateCycleEtaAndState(int i, int c, const double &cycle_buffer[], double &
         return;
     }
 
+    // ETA desativada nesta variante
     double eta_seconds = 0.0;
-    int bars_in_current_phase = CountBarsInCurrentPhase(i, color_buffer);
-    if(InpETAMode == ETA_PHASE_NEXT_EXTREMUM)
-    {
-        eta_seconds = ComputeETA_PhaseNextExtremum(i, c, cycle_buffer, period_bars, seconds_per_bar);
-    }
-    else if(InpETAMode == ETA_REALFFT)
-    {
-        eta_seconds = ComputeETA_RealFFT(effective_fft_index, period_bars, InpFFTWindow, seconds_per_bar);
-    }
-    else
-    {
-        double target_phase_bars = EstimatePhaseDuration(c, is_bullish, period_bars, bars_in_current_phase);
-        if(target_phase_bars < 1.0)
-            target_phase_bars = 1.0;
-        if(target_phase_bars < (double)bars_in_current_phase)
-            target_phase_bars = (double)bars_in_current_phase;
-
-        double target_phase_seconds = target_phase_bars * seconds_per_bar;
-
-        double elapsed_seconds = (double)bars_in_current_phase * seconds_per_bar;
-        double phase_progress = (target_phase_seconds > 0.0)
-                                ? MathMin(1.0, elapsed_seconds / target_phase_seconds)
-                                : 0.0;
-
-        double eta_scientific_seconds = 0.0;
-        if(effective_fft_index > 0 && effective_fft_index < ArraySize(fft_group_delay))
-            eta_scientific_seconds = CalculateScientificETASeconds(effective_fft_index, target_phase_seconds, phase_progress, seconds_per_bar);
-
-        int estimated_duration = GetMedianPhaseDuration(c, is_bullish);
-        double eta_structural_remaining_seconds = MathMax(0.0, target_phase_seconds - elapsed_seconds);
-        double eta_history_remaining_seconds = -1.0;
-        if(estimated_duration > 0)
-            eta_history_remaining_seconds = MathMax(0.0, (double)estimated_duration * seconds_per_bar - elapsed_seconds);
-
-        double weight_sum = 0.0;
-        if(target_phase_seconds > 0.0) { eta_seconds += eta_structural_remaining_seconds * 0.5; weight_sum += 0.5; }
-        if(eta_history_remaining_seconds >= 0.0) { eta_seconds += eta_history_remaining_seconds * 0.35; weight_sum += 0.35; }
-        if(eta_scientific_seconds > 0.0) { eta_seconds += eta_scientific_seconds * 0.15; weight_sum += 0.15; }
-        if(weight_sum > 0.0) eta_seconds /= weight_sum; else eta_seconds = eta_structural_remaining_seconds;
-
-        if(eta_seconds < 0.0) eta_seconds = 0.0;
-        double max_ref_seconds = target_phase_seconds;
-        double estimated_duration_seconds = (double)estimated_duration * seconds_per_bar;
-        if(estimated_duration > 0 && estimated_duration_seconds > max_ref_seconds) max_ref_seconds = estimated_duration_seconds;
-        double period_seconds = period_bars * seconds_per_bar;
-        if(period_seconds > max_ref_seconds) max_ref_seconds = period_seconds;
-        if(max_ref_seconds <= 0.0) max_ref_seconds = seconds_per_bar;
-        double max_eta_seconds = max_ref_seconds * 1.5;
-        if(eta_seconds > max_eta_seconds) eta_seconds = max_eta_seconds;
-    }
 
     bool color_changed = (color_buffer[i] != prev_color);
     double prev_eta_seconds = g_last_eta_seconds[c];
