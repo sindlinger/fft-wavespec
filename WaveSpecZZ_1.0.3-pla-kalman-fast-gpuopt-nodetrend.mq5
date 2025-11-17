@@ -199,7 +199,7 @@ bool BuildZigZagPriceSeries(const int start_pos,
                             const FFT_ZIGZAG_SERIES_MODE mode,
                             const ENUM_TIMEFRAMES source_tf)
 {
-    if(InpAppliedPrice != FFT_PRICE_ZIGZAG)
+    if(InpFeedData != FEED_ZIGZAG)
         return false;
 
     ENUM_TIMEFRAMES resolved_tf = ResolveTimeframe(source_tf);
@@ -792,6 +792,10 @@ input int  InpMinPeriod   = 18;     // Período mínimo do ciclo a detectar
 input int  InpMaxPeriod   = 52;     // Período máximo do ciclo a detectar
 input double InpBandwidth = 0.5;    // Largura de banda do filtro de ciclo
 
+// Fonte principal da série feed_data (combo solicitado)
+enum FEED_DATA_MODE { FEED_PLA = 0, FEED_ZIGZAG = 1, FEED_CLOSE = 2 };
+input FEED_DATA_MODE InpFeedData = FEED_PLA; // feed_data: PLA, ZigZag ou preço Close
+
 enum FFT_APPLIED_PRICE_SOURCE
   {
    FFT_PRICE_CLOSE    = PRICE_CLOSE,
@@ -804,7 +808,7 @@ enum FFT_APPLIED_PRICE_SOURCE
    FFT_PRICE_ZIGZAG   = 1000,
    FFT_PRICE_PLA      = 1001
   };
-input FFT_APPLIED_PRICE_SOURCE InpAppliedPrice = FFT_PRICE_ZIGZAG;  // Pre?o a ser aplicado
+input FFT_APPLIED_PRICE_SOURCE InpAppliedPrice = FFT_PRICE_ZIGZAG;  // (herdado) não usado nesta variante
 input ENUM_TIMEFRAMES InpFeedTimeframe = PERIOD_M1; // Timeframe do feed de preços
 input group "=== Segmenta??o Linear (PLA/PCA) ==="
 input bool   InpEnablePla             = false;   // Ativar segmenta??o PLA local
@@ -2509,7 +2513,7 @@ int OnInit()
         return(INIT_FAILED);
 
     ResetZigZagHandles();
-    if(InpAppliedPrice == FFT_PRICE_ZIGZAG)
+    if(InpFeedData == FEED_ZIGZAG)
     {
         ENUM_TIMEFRAMES tf_current = (ENUM_TIMEFRAMES)_Period;
         if(!EnsureZigZagHandleForTf(tf_current))
@@ -3111,7 +3115,7 @@ else
             continue;
 
                 // Se feed timeframe diferente, copiar do feed
-        bool use_alt_tf = (InpFeedTimeframe != PERIOD_CURRENT && InpAppliedPrice != FFT_PRICE_ZIGZAG && InpAppliedPrice != FFT_PRICE_PLA);
+        bool use_alt_tf = (InpFeedTimeframe != PERIOD_CURRENT && InpFeedData == FEED_CLOSE);
         int feed_shift = -1;
         if(use_alt_tf)
         {
@@ -3120,9 +3124,9 @@ else
                 continue;
         }
 
-switch(InpAppliedPrice)
+switch(InpFeedData)
         {
-            case FFT_PRICE_CLOSE:
+            case FEED_CLOSE:
                 if(use_alt_tf)
                 {
                     static double feed_close[]; ArrayResize(feed_close, InpFFTWindow); ArraySetAsSeries(feed_close, true);
@@ -3131,72 +3135,7 @@ switch(InpAppliedPrice)
                 }
                 else ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
                 break;
-            case FFT_PRICE_OPEN:
-                if(use_alt_tf)
-                {
-                    static double feed_open[]; ArrayResize(feed_open, InpFFTWindow); ArraySetAsSeries(feed_open, true);
-                    if(CopyOpen(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_open) != InpFFTWindow) continue;
-                    for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_open[InpFFTWindow-1-j];
-                }
-                else ArrayCopy(feed_data, open, 0, start_pos, InpFFTWindow);
-                break;
-            case FFT_PRICE_HIGH:
-                if(use_alt_tf)
-                {
-                    static double feed_high[]; ArrayResize(feed_high, InpFFTWindow); ArraySetAsSeries(feed_high, true);
-                    if(CopyHigh(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high) != InpFFTWindow) continue;
-                    for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_high[InpFFTWindow-1-j];
-                }
-                else ArrayCopy(feed_data, high, 0, start_pos, InpFFTWindow);
-                break;
-            case FFT_PRICE_LOW:
-                if(use_alt_tf)
-                {
-                    static double feed_low[]; ArrayResize(feed_low, InpFFTWindow); ArraySetAsSeries(feed_low, true);
-                    if(CopyLow(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low) != InpFFTWindow) continue;
-                    for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_low[InpFFTWindow-1-j];
-                }
-                else ArrayCopy(feed_data, low, 0, start_pos, InpFFTWindow);
-                break;
-            case FFT_PRICE_MEDIAN:
-                if(use_alt_tf)
-                {
-                    static double feed_high[]; static double feed_low[];
-                    ArrayResize(feed_high, InpFFTWindow); ArrayResize(feed_low, InpFFTWindow);
-                    ArraySetAsSeries(feed_high, true); ArraySetAsSeries(feed_low, true);
-                    if(CopyHigh(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high) != InpFFTWindow) continue;
-                    if(CopyLow (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low ) != InpFFTWindow) continue;
-                    for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j]) / 2.0;
-                }
-                else for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (high[start_pos+j] + low[start_pos+j]) / 2.0;
-                break;
-            case FFT_PRICE_TYPICAL:
-                if(use_alt_tf)
-                {
-                    static double feed_high[]; static double feed_low[]; static double feed_close[];
-                    ArrayResize(feed_high, InpFFTWindow); ArrayResize(feed_low, InpFFTWindow); ArrayResize(feed_close, InpFFTWindow);
-                    ArraySetAsSeries(feed_high, true); ArraySetAsSeries(feed_low, true); ArraySetAsSeries(feed_close, true);
-                    if(CopyHigh (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high ) != InpFFTWindow) continue;
-                    if(CopyLow  (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low  ) != InpFFTWindow) continue;
-                    if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
-                    for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + feed_close[InpFFTWindow-1-j]) / 3.0;
-                }
-                else for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (high[start_pos+j] + low[start_pos+j] + close[start_pos+j]) / 3.0;
-                break;
-            case FFT_PRICE_WEIGHTED:
-                if(use_alt_tf)
-                {
-                    static double feed_high[]; static double feed_low[]; static double feed_close[];
-                    ArrayResize(feed_high, InpFFTWindow); ArrayResize(feed_low, InpFFTWindow); ArrayResize(feed_close, InpFFTWindow);
-                    ArraySetAsSeries(feed_high, true); ArraySetAsSeries(feed_low, true); ArraySetAsSeries(feed_close, true);
-                    if(CopyHigh (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high ) != InpFFTWindow) continue;
-                    if(CopyLow  (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low  ) != InpFFTWindow) continue;
-                    if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
-                    for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + 2*feed_close[InpFFTWindow-1-j]) / 4.0;
-                }
-                else for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (high[start_pos+j] + low[start_pos+j] + 2*close[start_pos+j]) / 4.0;
-                break;
-            case FFT_PRICE_ZIGZAG:
+            case FEED_ZIGZAG:
               {
                 ENUM_TIMEFRAMES zig_tf = GetActiveZigZagTimeframe();
                 if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagSeriesMode, zig_tf))
@@ -3208,7 +3147,7 @@ switch(InpAppliedPrice)
                 }
                 break;
               }
-            case FFT_PRICE_PLA:
+            case FEED_PLA:
               {
                 if(!BuildPlaPriceSeries(start_pos, close))
                   {
@@ -3218,14 +3157,14 @@ switch(InpAppliedPrice)
                   {
                    Print("[WaveSpecZZ] Step: price series populated using PLA segmentation");
                    logged_price_source = true;
-                  }
+                }
                 break;
               }
             default:
                 ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
                 if(!logged_price_source)
                 {
-                    PrintFormat("[WaveSpecZZ] Step: price series populated using applied price mode=%d", (int)InpAppliedPrice);
+                    PrintFormat("[WaveSpecZZ] Step: price series populated using feed_data mode=%d", (int)InpFeedData);
                     logged_price_source = true;
                 }
                 break;
