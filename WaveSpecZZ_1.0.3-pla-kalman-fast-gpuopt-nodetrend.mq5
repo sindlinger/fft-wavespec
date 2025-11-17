@@ -537,6 +537,7 @@ void PlaSplit(const double &series[],
   }
 
 bool BuildPlaPriceSeries(const int start_pos,
+                         const datetime &time[],
                          const double &close[])
   {
    // Sempre construir PLA nesta variante (sem depender de InpEnablePla)
@@ -545,7 +546,7 @@ bool BuildPlaPriceSeries(const int start_pos,
    ArrayResize(feed_close_tf, InpFFTWindow);
    ArraySetAsSeries(feed_close_tf, true);
 
-   int shift = iBarShift(_Symbol, ResolveTimeframe(InpFeedTimeframe), close[start_pos]);
+   int shift = iBarShift(_Symbol, ResolveTimeframe(InpFeedTimeframe), time[start_pos]);
 
    if(CopyClose(_Symbol, ResolveTimeframe(InpFeedTimeframe), shift, InpFFTWindow, feed_close_tf) != InpFFTWindow)
       return false;
@@ -2926,7 +2927,7 @@ switch(InpFeedData)
               }
             case FEED_PLA:
               {
-                if(!BuildPlaPriceSeries(start_pos, close))
+                if(!BuildPlaPriceSeries(start_pos, time, close))
                 {
                     if(!logged_feed_fail)
                     {
