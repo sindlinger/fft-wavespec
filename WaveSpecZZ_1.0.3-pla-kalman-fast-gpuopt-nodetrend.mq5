@@ -139,7 +139,8 @@ bool EnsureWaveformGpuConfigured(const int length)
 
 ENUM_TIMEFRAMES ResolveTimeframe(const ENUM_TIMEFRAMES tf)
 {
-    ENUM_TIMEFRAMES resolved = tf;
+    // Timeframe centralizado: sempre usa InpFeedTimeframe (ou o gráfico se current)
+    ENUM_TIMEFRAMES resolved = InpFeedTimeframe;
     if(resolved == PERIOD_CURRENT)
         resolved = (ENUM_TIMEFRAMES)_Period;
     return resolved;
@@ -251,7 +252,6 @@ int GetZigZagHandleForTf(const ENUM_TIMEFRAMES tf)
 
 ENUM_TIMEFRAMES GetActiveZigZagTimeframe()
 {
-    // Usa o timeframe centralizado definido em InpFeedTimeframe
     return ResolveTimeframe(InpFeedTimeframe);
 }
 
@@ -540,7 +540,18 @@ bool BuildPlaPriceSeries(const int start_pos,
                          const double &close[])
   {
    // Sempre construir PLA nesta variante (sem depender de InpEnablePla)
-   ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
+   // Série vem do timeframe centralizado (InpFeedTimeframe)
+   static double feed_close_tf[];
+   ArrayResize(feed_close_tf, InpFFTWindow);
+   ArraySetAsSeries(feed_close_tf, true);
+
+   int shift = iBarShift(_Symbol, ResolveTimeframe(InpFeedTimeframe), close[start_pos]);
+
+   if(CopyClose(_Symbol, ResolveTimeframe(InpFeedTimeframe), shift, InpFFTWindow, feed_close_tf) != InpFFTWindow)
+      return false;
+
+   for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_close_tf[InpFFTWindow-1-j];
+
    g_pla_seg_count = 0;
    EnsurePlaSegmentCapacity(MathMax(4, InpPlaMaxSegments * 2));
    PlaSplit(feed_data,
@@ -2878,7 +2889,7 @@ else
         int feed_shift = -1;
         if(use_alt_tf)
         {
-            feed_shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
+            feed_shift = iBarShift(_Symbol, ResolveTimeframe(InpFeedTimeframe), time[start_pos]);
             if(feed_shift < 0)
                 continue;
         }
@@ -2889,7 +2900,7 @@ switch(InpFeedData)
                 if(use_alt_tf)
                 {
                     static double feed_close[]; ArrayResize(feed_close, InpFFTWindow); ArraySetAsSeries(feed_close, true);
-                    if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
+                    if(CopyClose(_Symbol, ResolveTimeframe(InpFeedTimeframe), feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
                     for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_close[InpFFTWindow-1-j];
                 }
                 else ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
