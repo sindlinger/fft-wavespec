@@ -122,8 +122,7 @@ int OnInit()
     SetIndexBuffer(6, WaveBuffer7, INDICATOR_DATA);
     SetIndexBuffer(7, WaveBuffer8, INDICATOR_DATA);
 
-    // Feed label (plot 8)
-    // Feed trace (plot 9)
+    // Feed trace (plot 8)
     SetIndexBuffer(8, FeedTrace, INDICATOR_DATA);
 
     // Period buffers (calc slots 9-16)
@@ -147,8 +146,11 @@ int OnInit()
     if(InpFeedOnly)
     {
         for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_NONE);
-        if(!InpShowFeedLabel) PlotIndexSetInteger(8, PLOT_DRAW_TYPE, DRAW_NONE);
-        if(!InpShowFeedTrace) PlotIndexSetInteger(9, PLOT_DRAW_TYPE, DRAW_NONE);
+        PlotIndexSetInteger(8, PLOT_DRAW_TYPE, InpShowFeedTrace ? DRAW_LINE : DRAW_NONE);
+    }
+    else
+    {
+        PlotIndexSetInteger(8, PLOT_DRAW_TYPE, InpShowFeedTrace ? DRAW_LINE : DRAW_NONE);
     }
 
     return(INIT_SUCCEEDED);
