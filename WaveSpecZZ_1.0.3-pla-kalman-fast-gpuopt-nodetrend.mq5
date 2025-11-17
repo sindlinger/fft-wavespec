@@ -2173,79 +2173,8 @@ void PopulateLeakAuxBuffers_New(int bar_index)
 //+------------------------------------------------------------------+
 //| Detectar mudan?as de estado e registrar (v7.54)                 |
 //+------------------------------------------------------------------+
-void DetectStateChanges(const double &current_states[])
-{
-    static double previous_states[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
-    static bool first_call = true;
+void // DetectStateChanges removido nesta variante simplificada
 
-    if(g_reset_state_cache)
-    {
-        for(int c = 0; c < 8; c++)
-            previous_states[c] = 0.0;
-        first_call = true;
-        g_reset_state_cache = false;
-    }
-
-    if(first_call) {
-        // Primeira chamada: apenas copiar estados
-        ArrayCopy(previous_states, current_states);
-        first_call = false;
-        return;
-    }
-
-    datetime current_time = TimeCurrent();
-
-    for(int c = 0; c < 8; c++)
-    {
-        if(!g_cycle_active[c]) continue;
-
-        // Detectar mudanÃ§a de estado
-        if(current_states[c] != previous_states[c] && previous_states[c] != 0)
-        {
-            // MudanÃ§a detectada!
-            g_last_transitions[c].time = current_time;
-            g_last_transitions[c].bar_index = 0;  // Barra atual
-            g_last_transitions[c].old_state = previous_states[c];
-            g_last_transitions[c].new_state = current_states[c];
-            g_last_transitions[c].period = g_dominant_periods[c];
-
-            // Ler ETA atual do buffer correspondente
-            double eta = GetEtaRawValue(c, 0);
-            g_last_transitions[c].eta_at_change = eta;
-        }
-    }
-
-    // Atualizar estados anteriores
-    ArrayCopy(previous_states, current_states);
-}
-
-//+------------------------------------------------------------------+
-//| Inicializar sistema de exporta??o CSV (v7.54)                   |
-//+------------------------------------------------------------------+
-void InitializeCSVExport()
-{
-    if(!InpExportToCSV) return;
-
-    // Criar arquivo CSV
-    string filename = InpCSVFilename;
-    g_file_handle = FileOpen(filename, FILE_WRITE|FILE_CSV|FILE_ANSI, ",");
-
-    if(g_file_handle == INVALID_HANDLE)
-    {
-        return;
-    }
-
-    // Escrever cabe?alho
-    string header = "Time,BarIndex";
-
-    for(int c = 1; c <= 12; c++)
-    {
-        header += StringFormat(",C%d_State,C%d_Period,C%d_ETA,C%d_Leak", c, c, c, c);
-    }
-
-    FileWrite(g_file_handle, header);
-    FileClose(g_file_handle);
-}
 
 //+------------------------------------------------------------------+
 //| Exportar linha para CSV (v7.54)                                 |
@@ -3113,13 +3042,7 @@ switch(InpFeedData)
                 }
             }
         }
-        DetectStateChanges(state_data);
-
-        double state_data_prev[12];
-        if(i > 0)
-            CollectCycleStates(i - 1, state_data_prev);
-        else
-            ArrayInitialize(state_data_prev, 0.0);
+        // Sem state/ETA/leak/signal nesta variante
 
 
   
