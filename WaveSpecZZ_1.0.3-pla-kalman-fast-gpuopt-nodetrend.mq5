@@ -2998,6 +2998,18 @@ int OnCalculate(const int rates_total,
     static int  s_history_cursor   = 0;
     calculateCount++;
 
+    // Espera janela cheia antes de qualquer processamento
+    static bool logged_wait = false;
+    if(rates_total < InpFFTWindow)
+    {
+        if(!logged_wait)
+        {
+            PrintFormat("[WaveSpecZZ] Aguardando janela completa: preciso de %d barras, tenho %d. Sem processamento, sem fallback.", InpFFTWindow, rates_total);
+            logged_wait = true;
+        }
+        return prev_calculated;
+    }
+
     if (calculateCount == 1 || (TimeCurrent() - lastCalculateLog) > 300)
     {
 
