@@ -37,12 +37,10 @@ input int InpZigZagBackstep = 3;
 enum ZIG_MODE { ZIG_STEP = 0, ZIG_INTERP = 1, ZIG_MID = 2 };
 input ZIG_MODE InpZigZagMode = ZIG_STEP;
 
-// Debug visual: exibe o feed corrente em um sublabel
-input bool InpShowFeedLabel = true;
-// Plotar o próprio feed_data em um overlay (escala correta)
-input bool InpShowFeedTrace  = true;
-// Mostrar só o feed (esconde as waves)
-input bool InpFeedOnly = false;
+input group "Feed Debug"
+input bool InpShowFeedLabel = true;   // mostra código do feed
+input bool InpShowFeedTrace = true;   // plota feed_data atual
+input bool InpFeedOnly      = false;  // esconde waves e mostra só feed
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
