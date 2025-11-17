@@ -3106,6 +3106,7 @@ else
     bool logged_state_update   = false;
     bool logged_follow_first   = false;
     bool logged_export         = false;
+    bool logged_feed_fail      = false;
     int processed_bars = 0;
     for(int i = start; i < end_index && !IsStopped(); i++)
     {
@@ -3139,7 +3140,14 @@ switch(InpFeedData)
               {
                 ENUM_TIMEFRAMES zig_tf = GetActiveZigZagTimeframe();
                 if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagSeriesMode, zig_tf))
+                {
+                    if(!logged_feed_fail)
+                    {
+                        Print("[WaveSpecZZ][ERR] feed_data=ZigZag indisponível (BuildZigZagPriceSeries falhou); sem fallback.");
+                        logged_feed_fail = true;
+                    }
                     continue;
+                }
                 if(!logged_price_source)
                 {
                     PrintFormat("[WaveSpecZZ] Step: ZigZag price series populated (mode=%d source=%d timeframe=%d)", (int)InpZigZagSeriesMode, (int)InpZigZagSource, (int)zig_tf);
@@ -3150,24 +3158,28 @@ switch(InpFeedData)
             case FEED_PLA:
               {
                 if(!BuildPlaPriceSeries(start_pos, close))
-                  {
-                   ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
-                  }
-                else if(!logged_price_source)
-                  {
-                   Print("[WaveSpecZZ] Step: price series populated using PLA segmentation");
-                   logged_price_source = true;
+                {
+                    if(!logged_feed_fail)
+                    {
+                        Print("[WaveSpecZZ][ERR] feed_data=PLA indisponível (BuildPlaPriceSeries falhou); sem fallback.");
+                        logged_feed_fail = true;
+                    }
+                    continue;
+                }
+                if(!logged_price_source)
+                {
+                    Print("[WaveSpecZZ] Step: price series populated using PLA segmentation");
+                    logged_price_source = true;
                 }
                 break;
               }
             default:
-                ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
-                if(!logged_price_source)
+                if(!logged_feed_fail)
                 {
-                    PrintFormat("[WaveSpecZZ] Step: price series populated using feed_data mode=%d", (int)InpFeedData);
-                    logged_price_source = true;
+                    PrintFormat("[WaveSpecZZ][ERR] feed_data mode inválido (%d); sem fallback e barra ignorada.", (int)InpFeedData);
+                    logged_feed_fail = true;
                 }
-                break;
+                continue;
         }
         processed_bars++;
 
