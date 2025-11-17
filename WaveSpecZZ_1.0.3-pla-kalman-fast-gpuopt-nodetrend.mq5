@@ -37,10 +37,9 @@ input int InpZigZagBackstep = 3;
 enum ZIG_MODE { ZIG_STEP = 0, ZIG_INTERP = 1, ZIG_MID = 2 };
 input ZIG_MODE InpZigZagMode = ZIG_STEP;
 
-input group "Feed Debug"
-input bool InpShowFeedLabel = true;   // mostra código do feed
-input bool InpShowFeedTrace = true;   // plota feed_data atual
-input bool InpFeedOnly      = false;  // esconde waves e mostra só feed
+input group "Feed View"
+enum VIEW_MODE { VIEW_WAVES = 0, VIEW_FEED = 1 };
+input VIEW_MODE InpViewMode = VIEW_WAVES; // Waves OU feed (exclusivo)
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -142,15 +141,16 @@ int OnInit()
     SetIndexBuffer(20, HighMapBuffer,INDICATOR_CALCULATIONS);
     SetIndexBuffer(21, LowMapBuffer,INDICATOR_CALCULATIONS);
 
-    // Opcional: mostrar só feed
-    if(InpFeedOnly)
+    // Exibição exclusiva: waves OU feed
+    if(InpViewMode == VIEW_FEED)
     {
         for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_NONE);
-        PlotIndexSetInteger(8, PLOT_DRAW_TYPE, InpShowFeedTrace ? DRAW_LINE : DRAW_NONE);
+        PlotIndexSetInteger(8, PLOT_DRAW_TYPE, DRAW_LINE);
     }
     else
     {
-        PlotIndexSetInteger(8, PLOT_DRAW_TYPE, InpShowFeedTrace ? DRAW_LINE : DRAW_NONE);
+        for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_LINE);
+        PlotIndexSetInteger(8, PLOT_DRAW_TYPE, DRAW_NONE);
     }
 
     return(INIT_SUCCEEDED);
