@@ -946,7 +946,7 @@ int g_dominant_indices[12];   // ?ndices FFT dos 12 ciclos dominantes
 
 //--- Estrutura para ajudar a ordenar os ciclos
 struct CycleInfo { int index; double power; };
-double g_dominant_periods[12]; // Armazena os per?odos dominantes para cada barra (12 ciclos)
+double g_dominant_periods[8]; // Armazena os per?odos dominantes para cada barra (12 ciclos)
 
 //+------------------------------------------------------------------+
 //| PERSISTENT PERIOD TRACKING SYSTEM (v7.52 - NEW)                 |
@@ -975,9 +975,9 @@ input double InpTrackerTolerance = 5.0;  // Toler?ncia de matching (% diferen?a)
 input int    InpMaxInactiveBars = 3;     // M?ximo de barras inativas antes de remover
 
 //--- Arrays para ETAs individuais de cada ciclo (para compatibilidade)
-double g_cycle_etas[12];        // ETA atual de cada ciclo (countdown) - 12 ciclos
-double g_cycle_periods[12];     // Per?odo de cada ciclo - 12 ciclos
-int    g_cycle_start_bar[12];   // Barra onde cada ciclo come?ou - 12 ciclos
+double g_cycle_etas[8];        // ETA atual de cada ciclo (countdown) - 12 ciclos
+double g_cycle_periods[8];     // Per?odo de cada ciclo - 12 ciclos
+int    g_cycle_start_bar[8];   // Barra onde cada ciclo come?ou - 12 ciclos
 bool   g_cycle_active[8];       // Se o ciclo está ativo - 8 ciclos
 bool   g_reset_state_cache = false;  // Sinaliza reset dos estados prÃ©vios
 
@@ -986,8 +986,8 @@ bool   g_reset_state_cache = false;  // Sinaliza reset dos estados prÃ©vios
 // [cycle_index][duration_history_index]
 int g_bullish_phase_durations[12][5];   // Last 5 bullish phase durations per cycle
 int g_bearish_phase_durations[12][5];   // Last 5 bearish phase durations per cycle
-int g_phase_change_count[12];            // Debug: Count phase changes per cycle
-double g_phase_duration_estimate[12][2];  // Cached expected durations [bull, bear] por ciclo
+int g_phase_change_count[8];            // Debug: Count phase changes per cycle
+double g_phase_duration_estimate[8][2];  // Cached expected durations [bull, bear] por ciclo
 
 //--- Kalman 4D (pos+vel+acc+jerk) sobre preço -----------------------
 double g_k_pos=0.0, g_k_vel=0.0, g_k_acc=0.0, g_k_jerk=0.0;
@@ -1034,15 +1034,15 @@ struct CycleState {
 CycleState g_cycle_states[12];  // Estado de cada um dos 12 ciclos
 
 // Mapeamento estável de tracker->slot (para evitar "repaint" visual)
-int g_slot_tracker_idx[12];
+int g_slot_tracker_idx[8];
 
 // --- New auxiliary leakage tracking (independent of old plotting) ---
-int g_aux_leak_tracker_idx[12];   // leak tracker currently assigned per cycle (-1 if none)
-int g_aux_leak_bars_active[12];   // consecutive bars leak has been active per cycle
-int g_aux_leak_gate_state[12];    // gate by main state: -1,0,+1 (block new leak until state change)
+int g_aux_leak_tracker_idx[8];   // leak tracker currently assigned per cycle (-1 if none)
+int g_aux_leak_bars_active[8];   // consecutive bars leak has been active per cycle
+int g_aux_leak_gate_state[8];    // gate by main state: -1,0,+1 (block new leak until state change)
 
 // --- Continuous ETA tracking in seconds (to enforce monotonic countdown)
-double g_last_eta_seconds[12];
+double g_last_eta_seconds[8];
 
 // Configura??es de detec??o de leakage
 input double InpLeakPeriodRatio = 0.30;   // Leak deve ter per?odo < X% do principal
