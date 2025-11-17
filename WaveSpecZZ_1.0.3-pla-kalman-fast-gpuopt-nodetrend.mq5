@@ -225,8 +225,8 @@ int OnCalculate(const int rates_total,
             fft_imag[k]=(base+1<InpFFTWindow)?g_fft_interleaved[base+1]:0.0;
         }
 
-        int bins = InpFFTWindow/2;
-        for(int k=0;k<bins;k++)
+        int bins2 = InpFFTWindow/2;
+        for(int k=0;k<bins2;k++)
             spectrum[k]=fft_real[k]*fft_real[k]+fft_imag[k]*fft_imag[k];
 
         // top-8 bins by power within period range
