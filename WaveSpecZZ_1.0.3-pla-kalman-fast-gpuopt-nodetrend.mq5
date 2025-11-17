@@ -256,22 +256,25 @@ int OnCalculate(const int rates_total,
             }
         }
 
-        // fill buffers
-        double *waves[8]={WaveBuffer1,WaveBuffer2,WaveBuffer3,WaveBuffer4,WaveBuffer5,WaveBuffer6,WaveBuffer7,WaveBuffer8};
-        double *periods[8]={WavePeriod1,WavePeriod2,WavePeriod3,WavePeriod4,WavePeriod5,WavePeriod6,WavePeriod7,WavePeriod8};
+        // fill buffers slot a slot (MQL não suporta ponteiros de array)
         for(int s=0;s<8;s++)
         {
+            double amp=0.0, period=0.0;
             if(top_bin[s]>0)
             {
-                double period = (double)InpFFTWindow / (double)top_bin[s];
-                double amp = MathSqrt(top_pow[s]);
-                waves[s][i]=amp;
-                periods[s][i]=period;
+                period = (double)InpFFTWindow / (double)top_bin[s];
+                amp = MathSqrt(top_pow[s]);
             }
-            else
+            switch(s)
             {
-                waves[s][i]=0.0;
-                periods[s][i]=0.0;
+                case 0: WaveBuffer1[i]=amp; WavePeriod1[i]=period; break;
+                case 1: WaveBuffer2[i]=amp; WavePeriod2[i]=period; break;
+                case 2: WaveBuffer3[i]=amp; WavePeriod3[i]=period; break;
+                case 3: WaveBuffer4[i]=amp; WavePeriod4[i]=period; break;
+                case 4: WaveBuffer5[i]=amp; WavePeriod5[i]=period; break;
+                case 5: WaveBuffer6[i]=amp; WavePeriod6[i]=period; break;
+                case 6: WaveBuffer7[i]=amp; WavePeriod7[i]=period; break;
+                case 7: WaveBuffer8[i]=amp; WavePeriod8[i]=period; break;
             }
         }
 
