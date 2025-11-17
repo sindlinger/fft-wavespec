@@ -139,9 +139,7 @@ bool EnsureWaveformGpuConfigured(const int length)
 
 ENUM_TIMEFRAMES ResolveTimeframe(const ENUM_TIMEFRAMES tf)
 {
-    if(tf == PERIOD_CURRENT)
-        return (ENUM_TIMEFRAMES)_Period;
-    return tf;
+    return (ENUM_TIMEFRAMES)_Period; // timeframe centralizado
 }
 
 static const ENUM_TIMEFRAMES kTimeframeOrder[] =
@@ -250,13 +248,10 @@ int GetZigZagHandleForTf(const ENUM_TIMEFRAMES tf)
 
 ENUM_TIMEFRAMES GetActiveZigZagTimeframe()
 {
-    switch(InpZigZagSource)
-    {
-        case ZIG_SOURCE_LOWER1: return DetermineLowerTimeframe(1, InpZigZagLowerTF1);
-        case ZIG_SOURCE_LOWER2: return DetermineLowerTimeframe(2, InpZigZagLowerTF2);
-        default:                return (ENUM_TIMEFRAMES)_Period;
-    }
+    return (ENUM_TIMEFRAMES)_Period; // sempre o timeframe do gráfico atual
 }
+
+// DetermineLowerTimeframe não é usado nesta variante centralizada
 
 bool BuildZigZagPriceSeries(const int start_pos,
                             const double &high[],
@@ -876,9 +871,9 @@ input group "=== ZigZag (feed) ==="
 input int InpZigZagDepth    = 12;  // Profundidade ZigZag
 input int InpZigZagDeviation= 5;   // Desvio ZigZag
 input int InpZigZagBackstep = 3;   // Backstep ZigZag
-input FFT_ZIGZAG_SOURCE_MODE InpZigZagSource = ZIG_SOURCE_LOWER2;  // Timeframe do ZigZag utilizado
-input ENUM_TIMEFRAMES        InpZigZagLowerTF1 = PERIOD_CURRENT;   // Timeframe ZigZag alternativo 1
-input ENUM_TIMEFRAMES        InpZigZagLowerTF2 = PERIOD_CURRENT;   // Timeframe ZigZag alternativo 2
+const FFT_ZIGZAG_SOURCE_MODE InpZigZagSource = ZIG_SOURCE_CURRENT;  // Timeframe fixo: gráfico atual
+const ENUM_TIMEFRAMES        InpZigZagLowerTF1 = PERIOD_CURRENT;   // não usado
+const ENUM_TIMEFRAMES        InpZigZagLowerTF2 = PERIOD_CURRENT;   // não usado
 input FFT_ZIGZAG_SERIES_MODE InpZigZagSeriesMode = ZIGZAG_ALTERNATING; // Modo de constru??o da s?rie ZigZag
 
 input int InpHistoryChunk   = 2000;     // Barras historicas processadas por chamada
@@ -2361,25 +2356,6 @@ int OnInit()
         ENUM_TIMEFRAMES tf_current = (ENUM_TIMEFRAMES)_Period;
         if(!EnsureZigZagHandleForTf(tf_current))
             return(INIT_FAILED);
-
-        if(InpZigZagSource == ZIG_SOURCE_LOWER1 || InpZigZagSource == ZIG_SOURCE_LOWER2)
-        {
-            ENUM_TIMEFRAMES tf_lower1 = DetermineLowerTimeframe(1, InpZigZagLowerTF1);
-            if(tf_lower1 != tf_current)
-            {
-                if(!EnsureZigZagHandleForTf(tf_lower1))
-                    return(INIT_FAILED);
-            }
-            if(InpZigZagSource == ZIG_SOURCE_LOWER2)
-            {
-                ENUM_TIMEFRAMES tf_lower2 = DetermineLowerTimeframe(2, InpZigZagLowerTF2);
-                if(tf_lower2 != tf_current && tf_lower2 != tf_lower1)
-                {
-                    if(!EnsureZigZagHandleForTf(tf_lower2))
-                        return(INIT_FAILED);
-                }
-            }
-        }
     }
 
     // Map indicator buffers (data + color)
