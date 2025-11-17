@@ -3074,6 +3074,9 @@ int OnCalculate(const int rates_total,
 
         for(int s=0; s<8; s++) g_slot_tracker_idx[s] = -1;
         for(int c=0; c<8; c++) { g_aux_leak_tracker_idx[c] = -1; g_aux_leak_bars_active[c] = 0; g_aux_leak_gate_state[c] = 0; }
+
+        // processar só a partir da primeira janela completa
+        start = MathMax(start, InpFFTWindow - 1);
     }
 else
     {
