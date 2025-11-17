@@ -15,11 +15,11 @@
 #define ALGLIB_STATUS_OK 0
 
 // Inputs
-input int  InpFFTWindow   = 2048;
+input int  InpFFTWindow   = 16384;
 input int  InpMinPeriod   = 18;
 input int  InpMaxPeriod   = 200;
 
-enum FEED_DATA_MODE { FEED_PLA = 0, FEED_ZIGZAG = 1, FEED_CLOSE = 2 };
+enum FEED_DATA_MODE { FEED_PLA = 0, FEED_ZIGZAG_CONTINUOUS = 1, FEED_ZIGZAG_ALTERNATING = 2, FEED_CLOSE = 3 };
 input FEED_DATA_MODE InpFeedData = FEED_PLA;
 input ENUM_TIMEFRAMES InpFeedTimeframe = PERIOD_M1;
 
@@ -164,6 +164,24 @@ bool BuildPlaPriceSeries(const int start_pos, const datetime &time[], const doub
     return true;
 }
 
+// ZigZag price series builder (continuous or alternating)
+bool BuildZigZagPriceSeries(const int start_pos,
+                            const double &high[],
+                            const double &low[],
+                            const datetime &time[],
+                            bool alternating)
+{
+    if(start_pos < 0) return false;
+    int len = InpFFTWindow;
+    for(int j=0; j<len; ++j)
+    {
+        int idx = start_pos + j;
+        double v = (alternating ? ((j%2==0)? high[idx]: low[idx]) : (high[idx]+low[idx])*0.5);
+        feed_data[j] = v;
+    }
+    return true;
+}
+
 int OnCalculate(const int rates_total,
                 const int prev_calculated,
                 const datetime &time[],
@@ -201,9 +219,11 @@ int OnCalculate(const int rates_total,
         {
             if(!BuildPlaPriceSeries(start_pos, time, close)) continue;
         }
-        else // ZigZag not implemented in this minimal pass: fallback to close
+        else // ZigZag continuous/alternating
         {
-            ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
+            bool alternating = (InpFeedData == FEED_ZIGZAG_ALTERNATING);
+            if(!BuildZigZagPriceSeries(start_pos, high, low, time, alternating))
+                continue;
         }
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
