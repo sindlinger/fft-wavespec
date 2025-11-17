@@ -34,6 +34,72 @@ bool g_gpu_waveform_session_initialized = false;
 int  g_gpu_waveform_last_length = 0;
 double g_fft_interleaved[];
 
+// CPU FFT fallback (radix-2, iterative). Length must be power of two.
+void CpuFftRealForward(const double &in[], int len, double &out_real[], double &out_imag[])
+{
+    // validate power-of-two
+    if(len <= 0 || (len & (len - 1)) != 0)
+    {
+        ArrayResize(out_real, 0);
+        ArrayResize(out_imag, 0);
+        return;
+    }
+
+    ArrayResize(out_real, len);
+    ArrayResize(out_imag, len);
+    for(int i = 0; i < len; ++i)
+    {
+        out_real[i] = in[i];
+        out_imag[i] = 0.0;
+    }
+
+    // bit-reversal
+    int j = 0;
+    for(int i = 0; i < len; ++i)
+    {
+        if(i < j)
+        {
+            double tr = out_real[i]; out_real[i] = out_real[j]; out_real[j] = tr;
+            double ti = out_imag[i]; out_imag[i] = out_imag[j]; out_imag[j] = ti;
+        }
+        int m = len >> 1;
+        while(m >= 1 && j >= m)
+        {
+            j -= m;
+            m >>= 1;
+        }
+        j += m;
+    }
+
+    // Cooley–Tukey iterative
+    for(int step = 1; step < len; step <<= 1)
+    {
+        double theta = -M_PI / (double)step;
+        double wtemp = MathSin(0.5 * theta);
+        double wpr = -2.0 * wtemp * wtemp;
+        double wpi = MathSin(theta);
+        for(int m = 0; m < step; ++m)
+        {
+            double wr = 1.0;
+            double wi = 0.0;
+            for(int k = m; k < len; k += (step << 1))
+            {
+                int l = k + step;
+                double tr = wr * out_real[l] - wi * out_imag[l];
+                double ti = wr * out_imag[l] + wi * out_real[l];
+                out_real[l] = out_real[k] - tr;
+                out_imag[l] = out_imag[k] - ti;
+                out_real[k] = out_real[k] + tr;
+                out_imag[k] = out_imag[k] + ti;
+            }
+            double wr_next = wr * wpr - wi * wpi + wr;
+            double wi_next = wi * wpr + wr * wpi + wi;
+            wr = wr_next;
+            wi = wi_next;
+        }
+    }
+}
+
 enum FFT_ZIGZAG_SERIES_MODE
   {
    ZIGZAG_CONTINUOUS = 0,   // Interpola entre extremos
@@ -3102,43 +3168,59 @@ switch(InpFeedData)
         }
 
         static bool gpu_warning_logged = false;
+        bool used_cpu_fft = false;
+
         if(!EnsureWaveformGpuConfigured(InpFFTWindow))
         {
             if(!gpu_warning_logged)
             {
-                Print("[GPU] Configuration failed. FFT stage skipped.");
+                Print("[GPU] Configuration failed. Falling back to CPU FFT.");
                 gpu_warning_logged = true;
             }
-            continue;
+            used_cpu_fft = true;
         }
 
-        ArrayResize(g_fft_interleaved, InpFFTWindow);
-        ArrayResize(fft_real, InpFFTWindow);
-        ArrayResize(fft_imag, InpFFTWindow);
-
-        const int status_fft = gpu_fft_real_forward(detrended_data, InpFFTWindow, g_fft_interleaved);
-        if(status_fft != ALGLIB_STATUS_OK)
+        if(!used_cpu_fft)
         {
-            if(!gpu_warning_logged)
-                PrintFormat("[GPU] gpu_fft_real_forward failed: %d na barra %d. FFT stage skipped.", status_fft, i);
-            g_gpu_waveform_session_initialized = false;
-            continue;
+            ArrayResize(g_fft_interleaved, InpFFTWindow);
+            ArrayResize(fft_real, InpFFTWindow);
+            ArrayResize(fft_imag, InpFFTWindow);
+
+            const int status_fft = gpu_fft_real_forward(detrended_data, InpFFTWindow, g_fft_interleaved);
+            if(status_fft != ALGLIB_STATUS_OK)
+            {
+                if(!gpu_warning_logged)
+                    PrintFormat("[GPU] gpu_fft_real_forward failed: %d na barra %d. Falling back to CPU FFT.", status_fft, i);
+                g_gpu_waveform_session_initialized = false;
+                used_cpu_fft = true;
+            }
+            else
+            {
+                gpu_warning_logged = false;
+                const int bins = InpFFTWindow / 2;
+                for(int k = 0; k < bins; ++k)
+                  {
+                   const int base = 2 * k;
+                   fft_real[k] = g_fft_interleaved[base];
+                   fft_imag[k] = (base + 1 < InpFFTWindow ? g_fft_interleaved[base + 1] : 0.0);
+                  }
+                for(int k = bins; k < InpFFTWindow; ++k)
+                  {
+                   fft_real[k] = 0.0;
+                   fft_imag[k] = 0.0;
+                  }
+            }
         }
 
-        gpu_warning_logged = false;
-
-        const int bins = InpFFTWindow / 2;
-        for(int k = 0; k < bins; ++k)
-          {
-           const int base = 2 * k;
-           fft_real[k] = g_fft_interleaved[base];
-           fft_imag[k] = (base + 1 < InpFFTWindow ? g_fft_interleaved[base + 1] : 0.0);
-          }
-        for(int k = bins; k < InpFFTWindow; ++k)
-          {
-           fft_real[k] = 0.0;
-           fft_imag[k] = 0.0;
-          }
+        if(used_cpu_fft)
+        {
+            CpuFftRealForward(detrended_data, InpFFTWindow, fft_real, fft_imag);
+            if(ArraySize(fft_real) != InpFFTWindow || ArraySize(fft_imag) != InpFFTWindow)
+                continue;
+            if(!gpu_warning_logged)
+                Print("[GPU] CPU FFT fallback ativo.");
+            gpu_warning_logged = false;
+        }
 
         if(!logged_fft)
         {
