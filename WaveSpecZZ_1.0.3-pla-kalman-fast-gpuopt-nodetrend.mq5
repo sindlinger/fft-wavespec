@@ -3027,6 +3027,13 @@ int OnCalculate(const int rates_total,
     if(InpHistoryMaxBars > 0 && rates_total > InpHistoryMaxBars)
         history_start = rates_total - InpHistoryMaxBars;
 
+    // Garante que só começamos quando a janela está cheia
+    int min_start = MathMax(0, InpFFTWindow - 1);
+    if(history_start < min_start)
+        history_start = min_start;
+    if(start < min_start)
+        start = min_start;
+
     int chunk = (InpHistoryChunk > 0 ? InpHistoryChunk : rates_total);
     PrintFormat("[WaveSpecZZ] Incremental: processing from %d to %d (rates_total=%d)", start, end_index-1, rates_total);
 
@@ -3104,10 +3111,14 @@ else
             s_history_cursor = rates_total;
         if(s_history_cursor < history_start)
             s_history_cursor = history_start;
+        if(s_history_cursor < min_start)
+            s_history_cursor = min_start;
 
         start = s_history_cursor;
         if(start < history_start)
             start = history_start;
+        if(start < min_start)
+            start = min_start;
 
         end_index = (int)MathMin(rates_total, s_history_cursor + chunk);
         s_history_cursor = end_index;
@@ -3118,6 +3129,8 @@ else
     else
     {
         start = (int)MathMax(effective_prev - 1, history_start);
+        if(start < min_start)
+            start = min_start;
         end_index = rates_total;
     }
 
