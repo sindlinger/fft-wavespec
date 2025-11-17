@@ -502,7 +502,7 @@ bool BuildPlaPriceSeries(const int start_pos,
   }
 
 // RGB helper e enum de paletas vêm do header compartilhado
-#include "..\\Include\\PaletteDefinitions.mqh"
+#include "..\\..\\Include\\PaletteDefinitions.mqh"
 
 inline double Clamp01(const double value)
 {
@@ -784,25 +784,13 @@ color default_palette[12];
 #property indicator_label73  "SIG-CONF"
 #property indicator_type73   DRAW_NONE
 
-//--- DEPRECATED: Inputs de Per?odos dos Ciclos (N?O S?O MAIS USADOS!)
-// ATEN??O: Estes valores eram OFFSETS VISUAIS, n?o per?odos reais!
-// Os per?odos reais agora v?m 100% da FFT (detec??o autom?tica)
-// Mantidos aqui apenas para compatibilidade com configura??es antigas
-input int                InpPeriodCycle1 = 5;      // [DEPRECATED] Offset Visual Ciclo 1
-input int                InpPeriodCycle2 = 10;     // [DEPRECATED] Offset Visual Ciclo 2
-input int                InpPeriodCycle3 = 13;     // [DEPRECATED] Offset Visual Ciclo 3
-input int                InpPeriodCycle4 = 17;     // [DEPRECATED] Offset Visual Ciclo 4
-input int                InpPeriodCycle5 = 19;     // [DEPRECATED] Offset Visual Ciclo 5
-input int                InpPeriodCycle6 = 26;     // [DEPRECATED] Offset Visual Ciclo 6
-input int                InpPeriodCycle7 = 39;     // [DEPRECATED] Offset Visual Ciclo 7
-input int                InpPeriodCycle8 = 52;     // [DEPRECATED] Offset Visual Ciclo 8
+// (inputs de períodos legados removidos nesta variante nodetrend)
 
 //--- Inputs do C?lculo de Ciclo (FFT)
 input int  InpFFTWindow   = 16384;  // Janela da FFT 64-128-256-512-1024-2048-4096-8196-16384-32768-65536-131072-262144
 input int  InpMinPeriod   = 18;    // Per?odo m?nimo do ciclo a detectar
 input int  InpMaxPeriod   = 52;    // Per?odo m?ximo do ciclo a detectar
-input int  InpTrendPeriod = 1024;  // Per?odo do filtro de tend?ncia (maior que InpMaxPeriod)
-input double InpBandwidth = 0.5;   // Largura da banda do filtro (0.05-0.3)
+input double InpBandwidth = 0.5;   // Mantido apenas para compatibilidade
 
 enum FFT_APPLIED_PRICE_SOURCE
   {
@@ -2148,133 +2136,6 @@ void ProcessFollowFirst(int bar_index, const double &etas[])
 //| Processa a l?gica de SINAL do Follow First (v7.56)             |
 //| Encapsula a detec??o de virada de cor e popula o buffer FF.      |
 //+------------------------------------------------------------------+
-void ProcessFollowFirstSignal(int bar_index, const double &state_data[], const double &state_data_prev[])
-{
-    if(!InpEnableFollowFirst || bar_index < 1) return;
-    if(!InpFFAllowMultipleSignals && g_ff_state.active_cycle != -1) return;
-
-    // Para cada ciclo que virou na barra, emitir sinal independente
-    int buy_turns = 0, sell_turns = 0;
-    int active_cycles = 0;
-    for (int c = 0; c < 12; c++)
-    {
-        if(!g_cycle_active[c]) continue; else active_cycles++;
-        double period = g_dominant_periods[c];
-        if (period < InpMinPeriodToFollow || period > InpMaxPeriodToFollow) continue;
-
-        double prev_state = state_data_prev[c];
-        double curr_state = state_data[c];
-        if(prev_state == 0.0) continue; // sem hist?rico
-
-        double eta_prev_raw = GetEtaRawValue(c, bar_index - 1);
-        double eta_curr_raw = GetEtaRawValue(c, bar_index);
-
-        bool states_equal = (curr_state == prev_state);
-        bool pre_signal_triggered = false;
-        int  pre_signal_dir = 0;
-        double pre_signal_value = 0.0;
-
-        if(InpEntryBarsBeforeEnd > 0 && states_equal)
-        {
-            double threshold = (double)InpEntryBarsBeforeEnd;
-            if(curr_state > 0.0 && eta_prev_raw > 0.0 && eta_curr_raw > 0.0)
-            {
-                if(eta_prev_raw > threshold && eta_curr_raw <= threshold)
-                {
-                    pre_signal_dir = -1;
-                    pre_signal_triggered = true;
-                }
-            }
-            else if(curr_state < 0.0 && eta_prev_raw < 0.0 && eta_curr_raw < 0.0)
-            {
-                double prev_abs = MathAbs(eta_prev_raw);
-                double curr_abs = MathAbs(eta_curr_raw);
-                if(prev_abs > threshold && curr_abs <= threshold)
-                {
-                    pre_signal_dir = +1;
-                    pre_signal_triggered = true;
-                }
-            }
-        }
-
-        if(pre_signal_triggered)
-        {
-            pre_signal_value = (pre_signal_dir > 0) ? 60.0 : -60.0;
-            SetSigBufferValue(c, bar_index, pre_signal_value);
-            if(!InpFFAllowMultipleSignals)
-            {
-                g_sig_last_dir[c] = pre_signal_dir;
-                g_sig_last_bar[c] = bar_index;
-            }
-            if(pre_signal_dir > 0) buy_turns++; else sell_turns++;
-
-            if(!InpFFAllowMultipleSignals)
-            {
-                g_ff_state.mode = (pre_signal_dir > 0) ? FF_WAITING_PEAK : FF_WAITING_VALLEY;
-                g_ff_state.active_cycle = c;
-                g_ff_state.active_period = period;
-                g_ff_state.bars_in_position = 0;
-                g_ff_state.active_eta_start = MathAbs(eta_curr_raw);
-                break;
-            }
-            else
-            {
-                continue;
-            }
-        }
-
-        if(states_equal) continue; // sem virada e sem pr?-sinal
-
-        bool to_bull = (prev_state == -1.0 && curr_state == 1.0);
-        bool to_bear = (prev_state == 1.0 && curr_state == -1.0);
-
-        if(to_bear)
-        {
-            if(InpSIGIgnoreSameDirection && g_sig_last_dir[c] == -1 && bar_index > g_sig_last_bar[c]) continue;
-            SetSigBufferValue(c, bar_index, -100.0);
-            g_sig_last_dir[c] = -1;
-            g_sig_last_bar[c] = bar_index;
-            sell_turns++;
-            if(!InpFFAllowMultipleSignals)
-            {
-                g_ff_state.mode = FF_WAITING_VALLEY;
-                g_ff_state.active_cycle = c;
-                g_ff_state.active_period = period;
-                g_ff_state.bars_in_position = 0;
-                g_ff_state.active_eta_start = MathAbs(eta_curr_raw);
-                break;
-            }
-        }
-        else if(to_bull)
-        {
-            if(InpSIGIgnoreSameDirection && g_sig_last_dir[c] == +1 && bar_index > g_sig_last_bar[c]) continue;
-            SetSigBufferValue(c, bar_index, 100.0);
-            g_sig_last_dir[c] = +1;
-            g_sig_last_bar[c] = bar_index;
-            buy_turns++;
-            if(!InpFFAllowMultipleSignals)
-            {
-                g_ff_state.mode = FF_WAITING_PEAK;
-                g_ff_state.active_cycle = c;
-                g_ff_state.active_period = period;
-                g_ff_state.bars_in_position = 0;
-                g_ff_state.active_eta_start = MathAbs(eta_curr_raw);
-                break;
-            }
-        }
-    }
-    // Conflu?ncia por barra
-    double conf_val = 0.0;
-    if(active_cycles > 0)
-    {
-        double buy_pct = (100.0 * buy_turns) / active_cycles;
-        double sell_pct = (100.0 * sell_turns) / active_cycles;
-        if(buy_pct >= InpConfluencePercent && buy_pct >= sell_pct) conf_val = +InpConfluenceLotMult;
-        else if(sell_pct >= InpConfluencePercent && sell_pct > buy_pct) conf_val = -InpConfluenceLotMult;
-    }
-    SigConfluence[bar_index] = conf_val;
-    return;
-}
 
 //+------------------------------------------------------------------+
 //| Popular buffers de leakage com ETAs das intrus?es (v7.53)      |
