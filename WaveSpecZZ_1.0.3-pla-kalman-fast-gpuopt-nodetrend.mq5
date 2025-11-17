@@ -2756,11 +2756,11 @@ void CalculateCycle(int i, const double &price_array[], double &cycle_buffer[], 
 
     // --- L?gica do filtro passa-banda (inalterada) ---
     double omega = 2.0 * M_PI / period;
-    double bw = fmax(0.01, fmin(0.49, InpBandwidth));
+    double bw = InpBandwidth; // sem clamp para testar
     double alpha_filter = sin(omega) * sinh(log(2.0) / 2.0 * bw * omega / sin(omega));
     double b0 = alpha_filter, b1 = 0, b2 = -alpha_filter;
     double a0 = 1.0 + alpha_filter, a1 = -2.0 * cos(omega), a2 = 1.0 - alpha_filter;
-    b0 /= a0; b1 /= a0; b2 /= a0; a1 /= a0; a2 /= a0;
+    // sem normalização por a0: usar coeficientes brutos
     
     // C?lculo final usando as vari?veis seguras
     cycle_buffer[i] = b0 * p_i + b1 * p_i_1 + b2 * p_i_2 - a1 * c_i_1 - a2 * c_i_2;
