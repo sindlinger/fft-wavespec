@@ -3047,7 +3047,7 @@ switch(InpFeedData)
 
 
 
-        //--- 4c. Encontrar os Top 12 ciclos reais
+        //--- 4c. Encontrar os Top 8 ciclos reais (FFT amplitude) e plotar direto
         CycleInfo all_cycles[];
         int min_index = (int)ceil((double)InpFFTWindow / InpMaxPeriod);
         int max_index = (int)floor((double)InpFFTWindow / InpMinPeriod);
@@ -3060,86 +3060,59 @@ switch(InpFeedData)
             cycle_count++;
         }
 
-        if(!logged_cycle_scan)
+        // Selecionar top 8 por potência
+        int top_n = MathMin(8, cycle_count);
+        for(int slot = 0; slot < 8; ++slot)
         {
-            PrintFormat("[WaveSpecZZ] Step: cycle scan completed (candidates=%d)", cycle_count);
-            logged_cycle_scan = true;
-        }
-
-        //--- 5. PERSISTENT PERIOD TRACKING (v7.52 - NEW)
-        // Ao invï¿½s de ordenar e perder identidade, fazemos MATCHING de perï¿½odos
-
-        datetime current_time = time[i];
-
-        // Para cada perï¿½odo detectado pela FFT
-        for(int j = 0; j < cycle_count; j++)
-        {
-            double period = (all_cycles[j].index > 0) ? (double)InpFFTWindow / all_cycles[j].index : 0;
-            if(period <= 0) continue;
-
-            int fft_index = all_cycles[j].index;
-            double power = all_cycles[j].power;
-
-            // Tentar encontrar tracker existente para este perï¿½odo
-            int tracker_idx = FindClosestTracker(period, InpTrackerTolerance);
-
-            if(tracker_idx >= 0)
+            int best_idx = -1;
+            double best_pow = -1.0;
+            for(int j = 0; j < cycle_count; j++)
             {
-                // ATUALIZAR tracker existente
-                UpdateTracker(tracker_idx, period, fft_index, power, current_time);
+                if(all_cycles[j].power > best_pow)
+                {
+                    best_pow = all_cycles[j].power;
+                    best_idx = j;
+                }
+            }
+            if(best_idx >= 0)
+            {
+                // marcar slot e "remover" para próxima iteração
+                int bin = all_cycles[best_idx].index;
+                double power = all_cycles[best_idx].power;
+                all_cycles[best_idx].power = -1.0; // usado
+
+                double period = (bin > 0) ? (double)InpFFTWindow / (double)bin : 0.0;
+                double amplitude = MathSqrt(MathMax(0.0, power));
+
+                // valor plotado: amplitude (linha horizontal por barra)
+                switch(slot)
+                {
+                    case 0: WaveBuffer1[i] = amplitude; WavePeriodBuffer1[i] = period; break;
+                    case 1: WaveBuffer2[i] = amplitude; WavePeriodBuffer2[i] = period; break;
+                    case 2: WaveBuffer3[i] = amplitude; WavePeriodBuffer3[i] = period; break;
+                    case 3: WaveBuffer4[i] = amplitude; WavePeriodBuffer4[i] = period; break;
+                    case 4: WaveBuffer5[i] = amplitude; WavePeriodBuffer5[i] = period; break;
+                    case 5: WaveBuffer6[i] = amplitude; WavePeriodBuffer6[i] = period; break;
+                    case 6: WaveBuffer7[i] = amplitude; WavePeriodBuffer7[i] = period; break;
+                    case 7: WaveBuffer8[i] = amplitude; WavePeriodBuffer8[i] = period; break;
+                }
             }
             else
             {
-                // CRIAR novo tracker
-                AddTracker(period, fft_index, power, current_time);
+                // slots sem dado
+                switch(slot)
+                {
+                    case 0: WaveBuffer1[i] = 0.0; WavePeriodBuffer1[i] = 0.0; break;
+                    case 1: WaveBuffer2[i] = 0.0; WavePeriodBuffer2[i] = 0.0; break;
+                    case 2: WaveBuffer3[i] = 0.0; WavePeriodBuffer3[i] = 0.0; break;
+                    case 3: WaveBuffer4[i] = 0.0; WavePeriodBuffer4[i] = 0.0; break;
+                    case 4: WaveBuffer5[i] = 0.0; WavePeriodBuffer5[i] = 0.0; break;
+                    case 5: WaveBuffer6[i] = 0.0; WavePeriodBuffer6[i] = 0.0; break;
+                    case 6: WaveBuffer7[i] = 0.0; WavePeriodBuffer7[i] = 0.0; break;
+                    case 7: WaveBuffer8[i] = 0.0; WavePeriodBuffer8[i] = 0.0; break;
+                }
             }
         }
-
-        // Marcar trackers nï¿½o vistos como inativos
-        DeactivateUnseenTrackers(current_time);
-
-        // Atualizar slots Dominant 1..12 com mapeamento estável
-        UpdateStableSlots();
-
-        // Detectar leakages (intrusï¿½es temporï¿½rias) (v7.53)
-        DetectLeakages();
-
-        if(!logged_tracker_update)
-        {
-            Print("[WaveSpecZZ] Step: tracker pool updated (match/deactivate/slots)");
-            logged_tracker_update = true;
-        }
-
-        if(!logged_leak)
-        {
-            Print("[WaveSpecZZ] Step: leakage detection executed");
-            logged_leak = true;
-        }
-
-        double seconds_per_bar = GetSecondsPerBar(i, time);
-
-        //--- 6. Atualizar ciclos dominantes (Top-12 por poder)
-        if(g_cycle_active[0])  { CalculateCycle(i, close, WaveBuffer1,  g_dominant_periods[0]);  UpdateCycleEtaAndState(i, 0,  WaveBuffer1,  ColorBuffer1,  EtaCycle1,  EtaRawCycle1,  seconds_per_bar); WavePeriodBuffer1[i]  = g_dominant_periods[0]; }  else { WaveBuffer1[i]  = 0.0; EtaCycle1[i]  = 0.0; EtaRawCycle1[i]  = 0.0; ColorBuffer1[i]  = 0.0; WavePeriodBuffer1[i]  = 0.0; g_last_eta_seconds[0] = 0.0; }
-        if(g_cycle_active[1])  { CalculateCycle(i, close, WaveBuffer2,  g_dominant_periods[1]);  UpdateCycleEtaAndState(i, 1,  WaveBuffer2,  ColorBuffer2,  EtaCycle2,  EtaRawCycle2,  seconds_per_bar); WavePeriodBuffer2[i]  = g_dominant_periods[1]; }  else { WaveBuffer2[i]  = 0.0; EtaCycle2[i]  = 0.0; EtaRawCycle2[i]  = 0.0; ColorBuffer2[i]  = 0.0; WavePeriodBuffer2[i]  = 0.0; g_last_eta_seconds[1] = 0.0; }
-        if(g_cycle_active[2])  { CalculateCycle(i, close, WaveBuffer3,  g_dominant_periods[2]);  UpdateCycleEtaAndState(i, 2,  WaveBuffer3,  ColorBuffer3,  EtaCycle3,  EtaRawCycle3,  seconds_per_bar); WavePeriodBuffer3[i]  = g_dominant_periods[2]; }  else { WaveBuffer3[i]  = 0.0; EtaCycle3[i]  = 0.0; EtaRawCycle3[i]  = 0.0; ColorBuffer3[i]  = 0.0; WavePeriodBuffer3[i]  = 0.0; g_last_eta_seconds[2] = 0.0; }
-        if(g_cycle_active[3])  { CalculateCycle(i, close, WaveBuffer4,  g_dominant_periods[3]);  UpdateCycleEtaAndState(i, 3,  WaveBuffer4,  ColorBuffer4,  EtaCycle4,  EtaRawCycle4,  seconds_per_bar); WavePeriodBuffer4[i]  = g_dominant_periods[3]; }  else { WaveBuffer4[i]  = 0.0; EtaCycle4[i]  = 0.0; EtaRawCycle4[i]  = 0.0; ColorBuffer4[i]  = 0.0; WavePeriodBuffer4[i]  = 0.0; g_last_eta_seconds[3] = 0.0; }
-        if(g_cycle_active[4])  { CalculateCycle(i, close, WaveBuffer5,  g_dominant_periods[4]);  UpdateCycleEtaAndState(i, 4,  WaveBuffer5,  ColorBuffer5,  EtaCycle5,  EtaRawCycle5,  seconds_per_bar); WavePeriodBuffer5[i]  = g_dominant_periods[4]; }  else { WaveBuffer5[i]  = 0.0; EtaCycle5[i]  = 0.0; EtaRawCycle5[i]  = 0.0; ColorBuffer5[i]  = 0.0; WavePeriodBuffer5[i]  = 0.0; g_last_eta_seconds[4] = 0.0; }
-        if(g_cycle_active[5])  { CalculateCycle(i, close, WaveBuffer6,  g_dominant_periods[5]);  UpdateCycleEtaAndState(i, 5,  WaveBuffer6,  ColorBuffer6,  EtaCycle6,  EtaRawCycle6,  seconds_per_bar); WavePeriodBuffer6[i]  = g_dominant_periods[5]; }  else { WaveBuffer6[i]  = 0.0; EtaCycle6[i]  = 0.0; EtaRawCycle6[i]  = 0.0; ColorBuffer6[i]  = 0.0; WavePeriodBuffer6[i]  = 0.0; g_last_eta_seconds[5] = 0.0; }
-        if(g_cycle_active[6])  { CalculateCycle(i, close, WaveBuffer7,  g_dominant_periods[6]);  UpdateCycleEtaAndState(i, 6,  WaveBuffer7,  ColorBuffer7,  EtaCycle7,  EtaRawCycle7,  seconds_per_bar); WavePeriodBuffer7[i]  = g_dominant_periods[6]; }  else { WaveBuffer7[i]  = 0.0; EtaCycle7[i]  = 0.0; EtaRawCycle7[i]  = 0.0; ColorBuffer7[i]  = 0.0; WavePeriodBuffer7[i]  = 0.0; g_last_eta_seconds[6] = 0.0; }
-        if(g_cycle_active[7])  { CalculateCycle(i, close, WaveBuffer8,  g_dominant_periods[7]);  UpdateCycleEtaAndState(i, 7,  WaveBuffer8,  ColorBuffer8,  EtaCycle8,  EtaRawCycle8,  seconds_per_bar); WavePeriodBuffer8[i]  = g_dominant_periods[7]; }  else { WaveBuffer8[i]  = 0.0; EtaCycle8[i]  = 0.0; EtaRawCycle8[i]  = 0.0; ColorBuffer8[i]  = 0.0; WavePeriodBuffer8[i]  = 0.0; g_last_eta_seconds[7] = 0.0; }
-
-        //--- 7. LEAK ETA AUX BUFFERS (NEW)
-        PopulateLeakAuxBuffers_New(i);
-
-        if(!logged_state_update)
-        {
-            Print("[WaveSpecZZ] Step: dominant cycles updated and auxiliary buffers refreshed");
-            logged_state_update = true;
-        }
-
-        //--- 8. ESTADOS DERIVADOS DAS CORES (v7.60)
-        double state_data[12];
-        CollectCycleStates(i, state_data);
         DetectStateChanges(state_data);
 
         double state_data_prev[12];
