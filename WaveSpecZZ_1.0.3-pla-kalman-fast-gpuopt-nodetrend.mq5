@@ -210,26 +210,19 @@ int OnCalculate(const int rates_total,
 
         // windowing: none (can add later)
 
-        bool gpu_ok = EnsureGpu(InpFFTWindow);
-        bool used_cpu=false;
-        if(gpu_ok)
+        if(!EnsureGpu(InpFFTWindow))
+            continue; // sem GPU, não processa
+
+        int st = gpu_fft_real_forward(detrended_data, InpFFTWindow, g_fft_interleaved);
+        if(st!=ALGLIB_STATUS_OK)
+            continue;
+
+        int bins=InpFFTWindow/2;
+        for(int k=0;k<bins;k++)
         {
-            int st = gpu_fft_real_forward(detrended_data, InpFFTWindow, g_fft_interleaved);
-            if(st==ALGLIB_STATUS_OK)
-            {
-                int bins=InpFFTWindow/2;
-                for(int k=0;k<bins;k++)
-                {
-                    int base=2*k;
-                    fft_real[k]=g_fft_interleaved[base];
-                    fft_imag[k]=(base+1<InpFFTWindow)?g_fft_interleaved[base+1]:0.0;
-                }
-            }
-            else used_cpu=true;
-        }
-        if(!gpu_ok || used_cpu)
-        {
-            CpuFftRealForward(detrended_data, InpFFTWindow, fft_real, fft_imag);
+            int base=2*k;
+            fft_real[k]=g_fft_interleaved[base];
+            fft_imag[k]=(base+1<InpFFTWindow)?g_fft_interleaved[base+1]:0.0;
         }
 
         int bins = InpFFTWindow/2;
