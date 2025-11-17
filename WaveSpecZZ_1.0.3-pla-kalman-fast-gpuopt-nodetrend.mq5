@@ -1257,16 +1257,31 @@ void CalculateGroupDelay(int n, double sample_rate)
 //+------------------------------------------------------------------+
 double GetSecondsPerBar(int bar_index, const datetime &time[])
 {
+    static bool logged_nominal_err = false;
     double nominal = (double)PeriodSeconds((ENUM_TIMEFRAMES)_Period);
     if(nominal <= 0.0)
-        nominal = 60.0; // fallback to 1 minute
+    {
+        if(!logged_nominal_err)
+        {
+            Print("[WaveSpecZZ][ERR] PeriodSeconds retornou <=0; sem fallback de tempo. ETA desativada nesta barra.");
+            logged_nominal_err = true;
+        }
+        return 0.0;
+    }
 
     if(bar_index <= 0)
         return nominal;
 
     double actual = (double)(time[bar_index] - time[bar_index - 1]);
     if(actual <= 0.0)
-        return nominal;
+    {
+        if(!logged_nominal_err)
+        {
+            Print("[WaveSpecZZ][ERR] time delta <=0; sem fallback. ETA desativada nesta barra.");
+            logged_nominal_err = true;
+        }
+        return 0.0;
+    }
 
     // Cap excessive gaps (weekends) to keep ETA stable
     double cap = nominal * 4.0;
