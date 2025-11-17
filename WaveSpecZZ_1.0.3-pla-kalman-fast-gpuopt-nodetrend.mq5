@@ -1122,52 +1122,7 @@ input bool   InpExportToCSV      = false;  // Exportar hist?rico para CSV
 input string InpCSVFilename      = "CycleStates.csv";  // Nome do arquivo CSV
 input int    InpCSVUpdateBars    = 10;     // Atualizar CSV a cada X barras (0=disabled)
 
-//+------------------------------------------------------------------+
-//| FOLLOW THE FIRST CONFIGURATION (v7.55 - NEW)                    |
-//+------------------------------------------------------------------+
-input group "=== FOLLOW THE FIRST ==="
-input bool   InpEnableFollowFirst = true;   // Ativar sistema FollowFirst
-input double InpMinPeriodToFollow = 15.0;   // Per?odo m?nimo para seguir (filtro)
-input double InpMaxPeriodToFollow = 100.0;  // Per?odo m?ximo para seguir
-input bool   InpShowFFPanel       = true;   // Mostrar painel FollowFirst
-input int    InpExitBarsBeforeEnd = 3;      // Sair X barras antes do fim do ciclo
-input int    InpEntryBarsBeforeEnd = 0;     // Emitir sinal X barras antes do fim da fase (0 = na virada)
-// Treino: quantas mudan?as de fase cada ciclo precisa antes de habilitar sinais
-input bool   InpFFAllowMultipleSignals = true; // Permitir m?ltiplos pulsos SIG mesmo em posi??o
-input bool   InpSIGIgnoreSameDirection = true;  // Ignorar mesma dire??o em barras subsequentes at? ocorrer dire??o oposta
-input double InpConfluencePercent      = 80.0;  // % de ciclos virando na mesma barra para ativar conflu?ncia
-input int    InpConfluenceLotMult      = 3;     // Multiplicador de lote quando h? conflu?ncia (sinalizado em SIG-CONF)
-
-// Vari?veis globais FollowFirst
-enum FFMode {
-    FF_WAITING_PEAK,    // Esperando PRIMEIRO PICO (verde)
-    FF_WAITING_VALLEY   // Esperando PRIMEIRO FUNDO (vermelho)
-};
-
-struct FollowFirstState {
-    FFMode   mode;                   // Modo atual: esperando pico ou fundo
-    int      active_cycle;           // Qual ciclo est? sendo seguido (-1 = nenhum)
-    double   active_period;          // Per?odo do ciclo ativo
-    double   active_eta_start;       // ETA quando entrou
-    datetime entry_time;             // Quando entrou
-    int      entry_bar;              // Barra de entrada
-    int      bars_in_position;       // Quantas barras est? na posi??o
-    bool     peak_found;             // Flag: j? encontrou pico neste ciclo
-    bool     valley_found;           // Flag: j? encontrou fundo neste ciclo
-};
-
-FollowFirstState g_ff_state;
-// Controle de repeti??o por ciclo
-int g_sig_last_dir[12];   // 0=nenhum, +1=compra, -1=venda (por ciclo)
-int g_sig_last_bar[12];   // ?ltima barra sinalizada (por ciclo)
-
-// Op??es de visualiza??o de marcadores das viradas
-input bool   InpShowSIGSymbols    = true;   // Desenhar setas nas viradas
-input int    InpSIGMaxMarkers     = 200;    // M?ximo de marcadores de virada no gr?fico
-
-//+------------------------------------------------------------------+
-//| Fun??o de detec??o de sinal profissional                        |
-//+------------------------------------------------------------------+
+// FOLLOW THE FIRST removido nesta variante; sinais/markers desativados.
 
 //+------------------------------------------------------------------+
 //| Windowing Functions para reduzir Spectral Leakage               |
@@ -2114,25 +2069,7 @@ double StepKalman4D(double z)
     return out;
 }
 
-void ProcessFollowFirst(int bar_index, const double &etas[])
-{
-    if(!InpEnableFollowFirst) return;
-    if(bar_index != 0) return;
-
-    // Esta fun??o agora gerencia apenas o ESTADO de SA?DA e contagem de barras
-    if(g_ff_state.active_cycle < 0) return;
-
-    g_ff_state.bars_in_position++;
-
-    int c = g_ff_state.active_cycle;
-    // Condi??o de sa?da: ETA est? perto de 0
-    if(MathAbs(etas[c]) <= InpExitBarsBeforeEnd)
-    {
-        g_ff_state.active_cycle = -1; // Libera para procurar novo sinal
-        // Alterna o modo para o pr?ximo sinal
-        g_ff_state.mode = (g_ff_state.mode == FF_WAITING_PEAK) ? FF_WAITING_VALLEY : FF_WAITING_PEAK;
-    }
-}
+// FollowFirst removido nesta variante
 
 //+------------------------------------------------------------------+
 //| Processa a l?gica de SINAL do Follow First (v7.56)             |
@@ -2546,22 +2483,6 @@ int OnInit()
             }
         }
     }
-
-    // Inicializar estado FollowFirst
-    g_ff_state.mode = FF_WAITING_PEAK;
-    g_ff_state.active_cycle = -1;
-    g_ff_state.active_period = 0;
-    g_ff_state.active_eta_start = 0;
-    g_ff_state.entry_time = 0;
-    g_ff_state.entry_bar = 0;
-    g_ff_state.bars_in_position = 0;
-    g_ff_state.peak_found = false;
-    g_ff_state.valley_found = false;
-
-
-    // Controle de repeti??o por ciclo: reset
-    for(int c=0;c<12;c++){ g_sig_last_dir[c]=0; g_sig_last_bar[c]=-1; }
-    // Sem gating/treino: sinais de transi??o liberados imediatamente
 
     // Map indicator buffers (data + color)
 
