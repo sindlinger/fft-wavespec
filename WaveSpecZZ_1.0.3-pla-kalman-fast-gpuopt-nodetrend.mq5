@@ -891,18 +891,15 @@ input double InpKalmanEmaBlendPeriod  = 0.0;    // >0 mistura com EMA
 //--- Buffers de Plotagem (cores das Waves 1..12)
 double ColorBuffer1[],  ColorBuffer2[],  ColorBuffer3[],  ColorBuffer4[];
 double ColorBuffer5[],  ColorBuffer6[],  ColorBuffer7[],  ColorBuffer8[];
-double ColorBuffer9[],  ColorBuffer10[], ColorBuffer11[], ColorBuffer12[]; // >0.5 = bullish
 
 //--- Buffers de C?lculo (Waveforms 1..12)
 double WaveBuffer1[],  WaveBuffer2[],  WaveBuffer3[],  WaveBuffer4[];
 double WaveBuffer5[],  WaveBuffer6[],  WaveBuffer7[],  WaveBuffer8[];
-double WaveBuffer9[],  WaveBuffer10[], WaveBuffer11[], WaveBuffer12[];
 double WaveKalman[];
 
 //--- Buffers informativos de período (WavePeriod 1..12)
 double WavePeriodBuffer1[],  WavePeriodBuffer2[],  WavePeriodBuffer3[],  WavePeriodBuffer4[];
 double WavePeriodBuffer5[],  WavePeriodBuffer6[],  WavePeriodBuffer7[],  WavePeriodBuffer8[];
-double WavePeriodBuffer9[],  WavePeriodBuffer10[], WavePeriodBuffer11[], WavePeriodBuffer12[];
 
 //--- Buffers de ETA ajustada (Wave 1..12 exibidas)
 double EtaCycle1[],   EtaCycle2[],   EtaCycle3[],   EtaCycle4[];
@@ -1830,10 +1827,6 @@ double GetColorBufferValue(int cycle_idx, int bar_idx)
         case 5:  if(bar_idx < ArraySize(ColorBuffer6))  return ColorBuffer6[bar_idx];  break;
         case 6:  if(bar_idx < ArraySize(ColorBuffer7))  return ColorBuffer7[bar_idx];  break;
         case 7:  if(bar_idx < ArraySize(ColorBuffer8))  return ColorBuffer8[bar_idx];  break;
-        case 8:  if(bar_idx < ArraySize(ColorBuffer9))  return ColorBuffer9[bar_idx];  break;
-        case 9:  if(bar_idx < ArraySize(ColorBuffer10)) return ColorBuffer10[bar_idx]; break;
-        case 10: if(bar_idx < ArraySize(ColorBuffer11)) return ColorBuffer11[bar_idx]; break;
-        case 11: if(bar_idx < ArraySize(ColorBuffer12)) return ColorBuffer12[bar_idx]; break;
     }
     return EMPTY_VALUE;
 }
@@ -1927,10 +1920,6 @@ void EnsureAuxBuffersSize(int size)
     if(ArraySize(WaveBuffer6)  < size) ArrayResize(WaveBuffer6,  size);
     if(ArraySize(WaveBuffer7)  < size) ArrayResize(WaveBuffer7,  size);
     if(ArraySize(WaveBuffer8)  < size) ArrayResize(WaveBuffer8,  size);
-    if(ArraySize(WaveBuffer9)  < size) ArrayResize(WaveBuffer9,  size);
-    if(ArraySize(WaveBuffer10) < size) ArrayResize(WaveBuffer10, size);
-    if(ArraySize(WaveBuffer11) < size) ArrayResize(WaveBuffer11, size);
-    if(ArraySize(WaveBuffer12) < size) ArrayResize(WaveBuffer12, size);
 
     if(ArraySize(EtaCycle1)  < size) ArrayResize(EtaCycle1,  size);
     if(ArraySize(EtaCycle2)  < size) ArrayResize(EtaCycle2,  size);
@@ -1953,10 +1942,6 @@ void EnsureAuxBuffersSize(int size)
     if(ArraySize(ColorBuffer6)  < size) ArrayResize(ColorBuffer6,  size);
     if(ArraySize(ColorBuffer7)  < size) ArrayResize(ColorBuffer7,  size);
     if(ArraySize(ColorBuffer8)  < size) ArrayResize(ColorBuffer8,  size);
-    if(ArraySize(ColorBuffer9)  < size) ArrayResize(ColorBuffer9,  size);
-    if(ArraySize(ColorBuffer10) < size) ArrayResize(ColorBuffer10, size);
-    if(ArraySize(ColorBuffer11) < size) ArrayResize(ColorBuffer11, size);
-    if(ArraySize(ColorBuffer12) < size) ArrayResize(ColorBuffer12, size);
 
     if(ArraySize(LeakETA1)  < size) ArrayResize(LeakETA1,  size);
     if(ArraySize(LeakETA2)  < size) ArrayResize(LeakETA2,  size);
@@ -1979,10 +1964,6 @@ void EnsureAuxBuffersSize(int size)
     if(ArraySize(WavePeriodBuffer6)  < size) ArrayResize(WavePeriodBuffer6,  size);
     if(ArraySize(WavePeriodBuffer7)  < size) ArrayResize(WavePeriodBuffer7,  size);
     if(ArraySize(WavePeriodBuffer8)  < size) ArrayResize(WavePeriodBuffer8,  size);
-    if(ArraySize(WavePeriodBuffer9)  < size) ArrayResize(WavePeriodBuffer9,  size);
-    if(ArraySize(WavePeriodBuffer10) < size) ArrayResize(WavePeriodBuffer10, size);
-    if(ArraySize(WavePeriodBuffer11) < size) ArrayResize(WavePeriodBuffer11, size);
-    if(ArraySize(WavePeriodBuffer12) < size) ArrayResize(WavePeriodBuffer12, size);
 
     if(ArraySize(SigBuffer1)  < size) ArrayResize(SigBuffer1,  size);
     if(ArraySize(SigBuffer2)  < size) ArrayResize(SigBuffer2,  size);
@@ -2241,10 +2222,6 @@ void PopulateLeakAuxBuffers_New(int bar_index)
                     case 5:  curr_state = (ColorBuffer6[bar_index]  > 0.5) ? +1 : -1; break;
                     case 6:  curr_state = (ColorBuffer7[bar_index]  > 0.5) ? +1 : -1; break;
                     case 7:  curr_state = (ColorBuffer8[bar_index]  > 0.5) ? +1 : -1; break;
-                    case 8:  curr_state = (ColorBuffer9[bar_index]  > 0.5) ? +1 : -1; break;
-                    case 9:  curr_state = (ColorBuffer10[bar_index] > 0.5) ? +1 : -1; break;
-                    case 10: curr_state = (ColorBuffer11[bar_index] > 0.5) ? +1 : -1; break;
-                    case 11: curr_state = (ColorBuffer12[bar_index] > 0.5) ? +1 : -1; break;
                 }
 
                 // libera gate se mudou de estado
@@ -2585,10 +2562,6 @@ int OnInit()
     SetIndexBuffer(5,  WaveBuffer6,  INDICATOR_DATA);
     SetIndexBuffer(6,  WaveBuffer7,  INDICATOR_DATA);
     SetIndexBuffer(7,  WaveBuffer8,  INDICATOR_DATA);
-    SetIndexBuffer(8,  WaveBuffer9,  INDICATOR_DATA);
-    SetIndexBuffer(9,  WaveBuffer10, INDICATOR_DATA);
-    SetIndexBuffer(10, WaveBuffer11, INDICATOR_DATA);
-    SetIndexBuffer(11, WaveBuffer12, INDICATOR_DATA);
 
     SetIndexBuffer(12, WavePeriodBuffer1,  INDICATOR_DATA);
     SetIndexBuffer(13, WavePeriodBuffer2,  INDICATOR_DATA);
@@ -2598,10 +2571,6 @@ int OnInit()
     SetIndexBuffer(17, WavePeriodBuffer6,  INDICATOR_DATA);
     SetIndexBuffer(18, WavePeriodBuffer7,  INDICATOR_DATA);
     SetIndexBuffer(19, WavePeriodBuffer8,  INDICATOR_DATA);
-    SetIndexBuffer(20, WavePeriodBuffer9,  INDICATOR_DATA);
-    SetIndexBuffer(21, WavePeriodBuffer10, INDICATOR_DATA);
-    SetIndexBuffer(22, WavePeriodBuffer11, INDICATOR_DATA);
-    SetIndexBuffer(23, WavePeriodBuffer12, INDICATOR_DATA);
 
     // Alternating ETA/Leak/State/SIG buffers per cycle (plots 25-72)
 // Alternating ETA/Leak/State/SIG buffers per cycle (plots 25-72)
@@ -3053,22 +3022,16 @@ int OnCalculate(const int rates_total,
         ArrayInitialize(WaveBuffer3, 0.0);   ArrayInitialize(WaveBuffer4, 0.0);
         ArrayInitialize(WaveBuffer5, 0.0);   ArrayInitialize(WaveBuffer6, 0.0);
         ArrayInitialize(WaveBuffer7, 0.0);   ArrayInitialize(WaveBuffer8, 0.0);
-        ArrayInitialize(WaveBuffer9, 0.0);   ArrayInitialize(WaveBuffer10, 0.0);
-        ArrayInitialize(WaveBuffer11, 0.0);  ArrayInitialize(WaveBuffer12, 0.0);
 
         ArrayInitialize(WavePeriodBuffer1, 0.0);  ArrayInitialize(WavePeriodBuffer2, 0.0);
         ArrayInitialize(WavePeriodBuffer3, 0.0);  ArrayInitialize(WavePeriodBuffer4, 0.0);
         ArrayInitialize(WavePeriodBuffer5, 0.0);  ArrayInitialize(WavePeriodBuffer6, 0.0);
         ArrayInitialize(WavePeriodBuffer7, 0.0);  ArrayInitialize(WavePeriodBuffer8, 0.0);
-        ArrayInitialize(WavePeriodBuffer9, 0.0);  ArrayInitialize(WavePeriodBuffer10, 0.0);
-        ArrayInitialize(WavePeriodBuffer11,0.0);  ArrayInitialize(WavePeriodBuffer12,0.0);
 
         ArrayInitialize(ColorBuffer1, 0.0);  ArrayInitialize(ColorBuffer2, 0.0);
         ArrayInitialize(ColorBuffer3, 0.0);  ArrayInitialize(ColorBuffer4, 0.0);
         ArrayInitialize(ColorBuffer5, 0.0);  ArrayInitialize(ColorBuffer6, 0.0);
         ArrayInitialize(ColorBuffer7, 0.0);  ArrayInitialize(ColorBuffer8, 0.0);
-        ArrayInitialize(ColorBuffer9, 0.0);  ArrayInitialize(ColorBuffer10, 0.0);
-        ArrayInitialize(ColorBuffer11,0.0);  ArrayInitialize(ColorBuffer12,0.0);
 
         ArrayInitialize(LeakETA1, 0.0);  ArrayInitialize(LeakETA2, 0.0);
         ArrayInitialize(LeakETA3, 0.0);  ArrayInitialize(LeakETA4, 0.0);
@@ -3350,10 +3313,6 @@ else
         if(g_cycle_active[5])  { CalculateCycle(i, close, WaveBuffer6,  g_dominant_periods[5]);  UpdateCycleEtaAndState(i, 5,  WaveBuffer6,  ColorBuffer6,  EtaCycle6,  EtaRawCycle6,  seconds_per_bar); WavePeriodBuffer6[i]  = g_dominant_periods[5]; }  else { WaveBuffer6[i]  = 0.0; EtaCycle6[i]  = 0.0; EtaRawCycle6[i]  = 0.0; ColorBuffer6[i]  = 0.0; WavePeriodBuffer6[i]  = 0.0; g_last_eta_seconds[5] = 0.0; }
         if(g_cycle_active[6])  { CalculateCycle(i, close, WaveBuffer7,  g_dominant_periods[6]);  UpdateCycleEtaAndState(i, 6,  WaveBuffer7,  ColorBuffer7,  EtaCycle7,  EtaRawCycle7,  seconds_per_bar); WavePeriodBuffer7[i]  = g_dominant_periods[6]; }  else { WaveBuffer7[i]  = 0.0; EtaCycle7[i]  = 0.0; EtaRawCycle7[i]  = 0.0; ColorBuffer7[i]  = 0.0; WavePeriodBuffer7[i]  = 0.0; g_last_eta_seconds[6] = 0.0; }
         if(g_cycle_active[7])  { CalculateCycle(i, close, WaveBuffer8,  g_dominant_periods[7]);  UpdateCycleEtaAndState(i, 7,  WaveBuffer8,  ColorBuffer8,  EtaCycle8,  EtaRawCycle8,  seconds_per_bar); WavePeriodBuffer8[i]  = g_dominant_periods[7]; }  else { WaveBuffer8[i]  = 0.0; EtaCycle8[i]  = 0.0; EtaRawCycle8[i]  = 0.0; ColorBuffer8[i]  = 0.0; WavePeriodBuffer8[i]  = 0.0; g_last_eta_seconds[7] = 0.0; }
-        if(g_cycle_active[8])  { CalculateCycle(i, close, WaveBuffer9,  g_dominant_periods[8]);  UpdateCycleEtaAndState(i, 8,  WaveBuffer9,  ColorBuffer9,  EtaCycle9,  EtaRawCycle9,  seconds_per_bar); WavePeriodBuffer9[i]  = g_dominant_periods[8]; }  else { WaveBuffer9[i]  = 0.0; EtaCycle9[i]  = 0.0; EtaRawCycle9[i]  = 0.0; ColorBuffer9[i]  = 0.0; WavePeriodBuffer9[i]  = 0.0; g_last_eta_seconds[8] = 0.0; }
-        if(g_cycle_active[9])  { CalculateCycle(i, close, WaveBuffer10, g_dominant_periods[9]);  UpdateCycleEtaAndState(i, 9,  WaveBuffer10, ColorBuffer10, EtaCycle10, EtaRawCycle10, seconds_per_bar); WavePeriodBuffer10[i] = g_dominant_periods[9]; }  else { WaveBuffer10[i] = 0.0; EtaCycle10[i] = 0.0; EtaRawCycle10[i] = 0.0; ColorBuffer10[i] = 0.0; WavePeriodBuffer10[i] = 0.0; g_last_eta_seconds[9] = 0.0; }
-        if(g_cycle_active[10]) { CalculateCycle(i, close, WaveBuffer11, g_dominant_periods[10]); UpdateCycleEtaAndState(i, 10, WaveBuffer11, ColorBuffer11, EtaCycle11, EtaRawCycle11, seconds_per_bar); WavePeriodBuffer11[i] = g_dominant_periods[10]; } else { WaveBuffer11[i] = 0.0; EtaCycle11[i] = 0.0; EtaRawCycle11[i] = 0.0; ColorBuffer11[i] = 0.0; WavePeriodBuffer11[i] = 0.0; g_last_eta_seconds[10] = 0.0; }
-        if(g_cycle_active[11]) { CalculateCycle(i, close, WaveBuffer12, g_dominant_periods[11]); UpdateCycleEtaAndState(i, 11, WaveBuffer12, ColorBuffer12, EtaCycle12, EtaRawCycle12, seconds_per_bar); WavePeriodBuffer12[i] = g_dominant_periods[11]; } else { WaveBuffer12[i] = 0.0; EtaCycle12[i] = 0.0; EtaRawCycle12[i] = 0.0; ColorBuffer12[i] = 0.0; WavePeriodBuffer12[i] = 0.0; g_last_eta_seconds[11] = 0.0; }
 
         //--- 7. LEAK ETA AUX BUFFERS (NEW)
         PopulateLeakAuxBuffers_New(i);
