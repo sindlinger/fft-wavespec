@@ -900,22 +900,19 @@ enum PHASE_TYPE { PHASE_NONE=0, PHASE_INFRA=1, PHASE_SUPRA=2 };
 enum ETA_MODE { ETA_DISABLED = 0 };
 input ETA_MODE InpETAMode = ETA_DISABLED;
 
-//--- Inputs de Detec??o de Sinal e Visualiza??o
-input bool   InpShowETALines      = true;  // Mostrar linhas verticais de proje??o ETA
-input bool   InpShowAllCycleETAs  = false; // Mostrar ETAs de todos os ciclos
-input bool   InpShowETALabels     = true;  // Mostrar ETA atual ao lado de cada linha
-input double InpBaseTop           = 75.0; // N?vel da linha C1
-input double InpBaseStep          = 10.0; // Decremento por ciclo (C2=C1-10, ...)
-//--- Inputs de Painel
-input bool   InpShowPanel = true;
-input int    InpPanelCorner = CORNER_LEFT_UPPER;
-input int    InpPanelX = 10;
-input int    InpPanelY = 25;
-
-//--- Inputs de Proje??o Futura (Ichimoku Style)
-input bool   InpShowFutureProjection = true;  // Mostrar proje??o futura
-input int    InpProjectionBars = 26;          // N?mero de barras futuras (como Ichimoku)
-input int    InpProjectionTransparency = 128; // Transparencia da projecao (0-255)
+// Visual/ETA/Projeção desativados nesta variante
+const bool   InpShowETALines      = false;
+const bool   InpShowAllCycleETAs  = false;
+const bool   InpShowETALabels     = false;
+const double InpBaseTop           = 0.0;
+const double InpBaseStep          = 0.0;
+const bool   InpShowPanel         = false;
+const int    InpPanelCorner       = CORNER_LEFT_UPPER;
+const int    InpPanelX            = 10;
+const int    InpPanelY            = 25;
+const bool   InpShowFutureProjection = false;
+const int    InpProjectionBars       = 0;
+const int    InpProjectionTransparency = 0;
 //--- Sele??o de visibilidade das waves
 input bool   InpShowWave1  = true;
 input bool   InpShowWave2  = true;
@@ -1102,10 +1099,10 @@ int g_aux_leak_gate_state[8];    // gate by main state: -1,0,+1 (block new leak 
 double g_last_eta_seconds[8];
 
 // Configura??es de detec??o de leakage
-input double InpLeakPeriodRatio = 0.30;   // Leak deve ter per?odo < X% do principal
-input int    InpLeakMinBars     = 2;      // M?nimo de barras para considerar leak
-input int    InpLeakMaxBars     = 8;      // M?ximo de barras antes de remover leak
-input double InpLeakPowerRatio  = 0.70;   // Leak deve ter power >= X% do principal
+const double InpLeakPeriodRatio = 0.0;
+const int    InpLeakMinBars     = 0;
+const int    InpLeakMaxBars     = 0;
+const double InpLeakPowerRatio  = 0.0;
 
 
 //+------------------------------------------------------------------+
@@ -1632,111 +1629,17 @@ void UpdateStableSlots()
 //+------------------------------------------------------------------+
 bool IsLeakage(int candidate_idx, int main_tracker_idx)
 {
-    if(candidate_idx < 0 || candidate_idx >= g_tracker_count) return false;
-    if(main_tracker_idx < 0 || main_tracker_idx >= g_tracker_count) return false;
-    if(candidate_idx == main_tracker_idx) return false;  // N?o pode ser leak de si mesmo
-
-    double main_period = g_period_trackers[main_tracker_idx].period;
-    double candidate_period = g_period_trackers[candidate_idx].period;
-    double main_power = g_period_trackers[main_tracker_idx].power;
-    double candidate_power = g_period_trackers[candidate_idx].power;
-
-    // 1. Per?odo muito menor que o principal (< X% do principal)
-    if(candidate_period >= main_period * InpLeakPeriodRatio) return false;
-
-    // 2. Power alto o suficiente (>= X% do principal)
-    if(candidate_power < main_power * InpLeakPowerRatio) return false;
-
-    // 3. Deve ser recente (poucos bars_inactive)
-    if(g_period_trackers[candidate_idx].bars_inactive > InpLeakMinBars) return false;
-
-    return true;
+    return false; // leakage desativado
 }
 
 //+------------------------------------------------------------------+
 //| Detecta e associa leakages aos ciclos principais               |
-//| Chamado ap?s GetTop12Trackers()                                |
+//| Chamado após GetTop12Trackers()                                |
 //+------------------------------------------------------------------+
 void DetectLeakages()
 {
-    // Para cada um dos 12 ciclos principais
-    for(int c = 0; c < 8; c++)
-    {
-        if(!g_cycle_active[c]) continue;
-
-        int main_idx = g_cycle_states[c].main_tracker_idx;
-        if(main_idx < 0 || main_idx >= g_tracker_count) continue;
-
-        // Resetar leak anterior se passou do tempo m?ximo
-        if(g_cycle_states[c].is_leak_active)
-        {
-            g_cycle_states[c].leak_bars_active++;
-
-            if(g_cycle_states[c].leak_bars_active > InpLeakMaxBars)
-            {
-                // Leak expirou
-                g_cycle_states[c].is_leak_active = false;
-                g_cycle_states[c].leak_tracker_idx = -1;
-                g_cycle_states[c].leak_bars_active = 0;
-            }
-        }
-
-        // Procurar novos leaks entre TODOS os trackers
-        int best_leak_idx = -1;
-        double highest_leak_power = 0;
-
-        for(int i = 0; i < g_tracker_count; i++)
-        {
-            if(g_period_trackers[i].bars_inactive > 0) continue;
-
-            if(IsLeakage(i, main_idx))
-            {
-                // Pegar o leak com maior power
-                if(g_period_trackers[i].power > highest_leak_power)
-                {
-                    highest_leak_power = g_period_trackers[i].power;
-                    best_leak_idx = i;
-                }
-            }
-        }
-
-        // Se encontrou leak v?lido, ativar
-        if(best_leak_idx >= 0)
-        {
-            if(!g_cycle_states[c].is_leak_active)
-            {
-                // Novo leak detectado
-                g_cycle_states[c].is_leak_active = true;
-                g_cycle_states[c].leak_tracker_idx = best_leak_idx;
-                g_cycle_states[c].leak_bars_active = 1;
-                g_cycle_states[c].leak_start_time = TimeCurrent();
-            }
-            else if(g_cycle_states[c].leak_tracker_idx == best_leak_idx)
-            {
-                // Leak continua ativo (mesmo tracker)
-                // leak_bars_active j? foi incrementado acima
-            }
-            else
-            {
-                // Leak mudou para outro tracker - reiniciar
-                g_cycle_states[c].leak_tracker_idx = best_leak_idx;
-                g_cycle_states[c].leak_bars_active = 1;
-                g_cycle_states[c].leak_start_time = TimeCurrent();
-            }
-        }
-        else
-        {
-            // Nenhum leak encontrado - desativar se estava ativo
-            if(g_cycle_states[c].is_leak_active)
-            {
-                g_cycle_states[c].is_leak_active = false;
-                g_cycle_states[c].leak_tracker_idx = -1;
-                g_cycle_states[c].leak_bars_active = 0;
-            }
-        }
-    }
+    // leakage desativado
 }
-
 //+------------------------------------------------------------------+
 //| FUN??ES AUXILIARES DE ACESSO A BUFFERS (Refatora??o v7.57)       |
 //+------------------------------------------------------------------+
