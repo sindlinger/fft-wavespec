@@ -866,31 +866,21 @@ input double InpBandwidth = 0.5;    // Largura de banda do filtro de ciclo
 enum FEED_DATA_MODE { FEED_PLA = 0, FEED_ZIGZAG = 1, FEED_CLOSE = 2 };
 input FEED_DATA_MODE InpFeedData = FEED_PLA; // feed_data: PLA, ZigZag ou preço Close
 
-enum FFT_APPLIED_PRICE_SOURCE
-  {
-   FFT_PRICE_CLOSE    = PRICE_CLOSE,
-   FFT_PRICE_OPEN     = PRICE_OPEN,
-   FFT_PRICE_HIGH     = PRICE_HIGH,
-   FFT_PRICE_LOW      = PRICE_LOW,
-   FFT_PRICE_MEDIAN   = PRICE_MEDIAN,
-   FFT_PRICE_TYPICAL  = PRICE_TYPICAL,
-   FFT_PRICE_WEIGHTED = PRICE_WEIGHTED,
-   FFT_PRICE_ZIGZAG   = 1000,
-   FFT_PRICE_PLA      = 1001
-  };
-// InpAppliedPrice herdado removido: usamos apenas InpFeedData (PLA/ZigZag/Close)
 input ENUM_TIMEFRAMES InpFeedTimeframe = PERIOD_M1; // Timeframe do feed de preços
-input group "=== Segmenta??o Linear (PLA/PCA) ==="
-input bool   InpEnablePla             = false;   // Ativar segmenta??o PLA local
+
+input group "=== PLA (feed) ==="
 input int    InpPlaMaxSegments        = 32;      // Limite de segmentos
 input double InpPlaMaxError           = 0.0005;  // Erro tolerado por segmento
-input int InpZigZagDepth    = 12;  // Profundidade ZigZag (usado quando InpAppliedPrice=FFT_PRICE_ZIGZAG)
+
+input group "=== ZigZag (feed) ==="
+input int InpZigZagDepth    = 12;  // Profundidade ZigZag
 input int InpZigZagDeviation= 5;   // Desvio ZigZag
 input int InpZigZagBackstep = 3;   // Backstep ZigZag
 input FFT_ZIGZAG_SOURCE_MODE InpZigZagSource = ZIG_SOURCE_LOWER2;  // Timeframe do ZigZag utilizado
 input ENUM_TIMEFRAMES        InpZigZagLowerTF1 = PERIOD_CURRENT;   // Timeframe ZigZag alternativo 1
 input ENUM_TIMEFRAMES        InpZigZagLowerTF2 = PERIOD_CURRENT;   // Timeframe ZigZag alternativo 2
 input FFT_ZIGZAG_SERIES_MODE InpZigZagSeriesMode = ZIGZAG_ALTERNATING; // Modo de constru??o da s?rie ZigZag
+
 input int InpHistoryChunk   = 2000;     // Barras historicas processadas por chamada
 input int InpHistoryMaxBars = 5000;   // Limite de barras do histórico (0 = todo)
 
@@ -940,6 +930,7 @@ input bool   InpShowWave10 = true;
 input bool   InpShowWave11 = true;
 input bool   InpShowWave12 = true;
 //--- Kalman adaptativo (pos+vel+acc+jerk) sobre preço aplicado
+input group "=== Kalman (filtro sobre feed_data) ==="
 input bool   InpEnableKalman    = true;
 input double InpKalmanFollowStrength  = 1.0;    // ganho global de Q
 input double InpKalmanProcessPosBase  = 0.01;
