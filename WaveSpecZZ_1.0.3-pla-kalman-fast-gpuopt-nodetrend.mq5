@@ -1693,7 +1693,7 @@ bool IsLeakage(int candidate_idx, int main_tracker_idx)
 void DetectLeakages()
 {
     // Para cada um dos 12 ciclos principais
-    for(int c = 0; c < 12; c++)
+    for(int c = 0; c < 8; c++)
     {
         if(!g_cycle_active[c]) continue;
 
@@ -1850,7 +1850,7 @@ double GetCycleStateValue(int cycle_idx, int bar_idx)
 
 void CollectCycleStates(int bar_index, double &states[])
 {
-    for(int c = 0; c < 12; c++)
+    for(int c = 0; c < 8; c++)
         states[c] = GetCycleStateValue(c, bar_index);
 }
 
@@ -2149,7 +2149,7 @@ void PopulateLeakBuffers(int bar_index)
         seconds_per_bar = 60.0;
 
     // Para cada um dos 12 ciclos
-    for(int c = 0; c < 12; c++)
+    for(int c = 0; c < 8; c++)
     {
         double leak_eta_bars = 0.0;  // Valor padr?o (sem leak)
 
@@ -2211,7 +2211,7 @@ void PopulateLeakBuffers(int bar_index)
 //+------------------------------------------------------------------+
 void PopulateLeakAuxBuffers_New(int bar_index)
 {
-    for(int c = 0; c < 12; c++)
+    for(int c = 0; c < 8; c++)
     {
         bool wrote = false;
         double leak_val = 0.0;
@@ -2337,7 +2337,7 @@ void DetectStateChanges(const double &current_states[])
 
     if(g_reset_state_cache)
     {
-        for(int c = 0; c < 12; c++)
+        for(int c = 0; c < 8; c++)
             previous_states[c] = 0.0;
         first_call = true;
         g_reset_state_cache = false;
@@ -2352,7 +2352,7 @@ void DetectStateChanges(const double &current_states[])
 
     datetime current_time = TimeCurrent();
 
-    for(int c = 0; c < 12; c++)
+    for(int c = 0; c < 8; c++)
     {
         if(!g_cycle_active[c]) continue;
 
@@ -2432,7 +2432,7 @@ void ExportToCSV(datetime time, int bar_index)
     // Montar linha de dados
     string line = TimeToString(time, TIME_DATE|TIME_MINUTES) + "," + IntegerToString(bar_index);
 
-    for(int c = 0; c < 12; c++)
+    for(int c = 0; c < 8; c++)
     {
         double state = GetCycleStateValue(c, bar_index);
         double period = g_dominant_periods[c];
@@ -2475,7 +2475,7 @@ void ShowCycleListDebug()
 {
     if(!InpShowTrackerInfo) return;
     string s = "Cycles (Top12):\n";
-    for(int c = 0; c < 12; c++)
+    for(int c = 0; c < 8; c++)
     {
         if(!g_cycle_active[c])
         {
@@ -2681,7 +2681,7 @@ bool input_visibility[12] =
     // Inicializar arrays de rastreamento de ciclos
     // IMPORTANTE: Per?odos reais v?m da FFT, n?o dos par?metros InpPeriodCycle1-8
     // (InpPeriodCycle1-8 s?o OFFSETS VISUAIS, n?o per?odos!)
-    for(int c = 0; c < 12; c++) {
+    for(int c = 0; c < 8; c++) {
         g_cycle_periods[c] = 0;      // Ser? preenchido pela FFT
         g_cycle_etas[c] = 0;         // Ser? calculado ap?s FFT detectar per?odos
         g_cycle_start_bar[c] = 0;
@@ -2689,7 +2689,7 @@ bool input_visibility[12] =
     }
 
     // Inicializar sistema de ETA cient?fico (v7.51)
-    for(int c = 0; c < 12; c++) {
+    for(int c = 0; c < 8; c++) {
         for(int h = 0; h < 5; h++) {
             g_bullish_phase_durations[c][h] = 0;
             g_bearish_phase_durations[c][h] = 0;
@@ -2700,7 +2700,7 @@ bool input_visibility[12] =
 
 
     // Inicializar CycleStates (v7.53)
-    for(int c = 0; c < 12; c++) {
+    for(int c = 0; c < 8; c++) {
         g_cycle_states[c].main_tracker_idx = -1;
         g_cycle_states[c].leak_tracker_idx = -1;
         g_cycle_states[c].main_eta_continuous = 0.0;
@@ -2725,7 +2725,7 @@ bool input_visibility[12] =
     }
 
     // Inicializar hist?rico de transi??es
-    for(int c = 0; c < 12; c++) {
+    for(int c = 0; c < 8; c++) {
         g_last_transitions[c].time = 0;
         g_last_transitions[c].bar_index = -1;
         g_last_transitions[c].old_state = 0;
