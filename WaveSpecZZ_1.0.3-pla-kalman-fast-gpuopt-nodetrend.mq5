@@ -3,7 +3,7 @@
 #property link      ""
 #property version   "1.005"
 #property indicator_separate_window
-#property indicator_buffers 20
+#property indicator_buffers 22
 #property indicator_plots   9
 
 // Buffers ZigZag mínimo (picos/fundos) para construir feed (calculations only)
@@ -219,34 +219,35 @@ bool BuildZigZagPriceSeries(const int start_pos,
     if(copied_main != len || copied_high != len || copied_low != len)
         return false;
 
+    int last_ext = -1;
+    double last_val = 0.0;
+    // inicializar last_ext com primeiro extremo à frente, se existir
+    for(int k=0;k<len;k++){ if(zz_main[k]!=0.0){ last_ext=k; last_val=zz_main[k]; break; } }
+    if(last_ext==-1) last_val = (high[start_pos]+low[start_pos])*0.5;
+
     for(int j=0; j<len; ++j)
     {
-        double v=0.0;
+        double v=last_val;
         switch(mode)
         {
             case ZIG_STEP:
-                // mantém o valor do último topo/fundo até o próximo
-                v = (zz_main[j] != 0.0) ? zz_main[j] : (j>0 ? feed_data[j-1] : (high[start_pos]+low[start_pos])*0.5);
+                if(zz_main[j]!=0.0){ last_ext=j; last_val=zz_main[j]; }
+                v = last_val;
                 break;
             case ZIG_INTERP:
-                // Interpola entre o último extremo conhecido e o próximo extremo adiante
                 {
-                    // procurar próximo extremo
-                    int next = -1;
+                    if(zz_main[j]!=0.0){ last_ext=j; last_val=zz_main[j]; }
+                    int next=-1;
                     for(int k=j+1;k<len;k++){ if(zz_main[k]!=0.0){ next=k; break; } }
-                    double cur_ext = (zz_main[j]!=0.0)? zz_main[j] : (j>0? feed_data[j-1] : (high[start_pos]+low[start_pos])*0.5);
-                    if(next==-1)
-                        v = cur_ext;
-                    else
-                    {
-                        double next_ext = zz_main[next];
-                        double t = (double)(j - (j)) / (double)(next - j + 1); // 0 na posição atual
-                        v = cur_ext + (next_ext - cur_ext) * t;
+                    if(next==-1){ v = last_val; }
+                    else{
+                        double next_val = zz_main[next];
+                        double t = (double)(j - last_ext) / (double)(next - last_ext);
+                        v = last_val + (next_val - last_val)*t;
                     }
                 }
                 break;
             case ZIG_MID:
-                // média dos extremos da barra mapeados pelo ZigZag
                 v = (zz_high[j]+zz_low[j])*0.5;
                 break;
         }
@@ -299,6 +300,21 @@ int OnCalculate(const int rates_total,
         }
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
+
+        // feed label debug
+        if(InpShowFeedLabel && ArraySize(FeedLabel)>=rates_total)
+        {
+            double code = 0.0;
+            if(InpFeedData==FEED_PLA) code = 1.0;
+            else if(InpFeedData==FEED_ZIGZAG)
+            {
+                if(InpZigZagMode==ZIG_STEP) code = 2.0;
+                else if(InpZigZagMode==ZIG_INTERP) code = 3.0;
+                else if(InpZigZagMode==ZIG_MID) code = 4.0;
+            }
+            else if(InpFeedData==FEED_CLOSE) code = 5.0;
+            FeedLabel[i] = code;
+        }
 
         // windowing: none (can add later)
 
