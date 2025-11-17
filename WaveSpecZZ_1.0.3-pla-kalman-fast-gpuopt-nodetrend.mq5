@@ -308,7 +308,7 @@ bool BuildZigZagPriceSeries(const int start_pos,
     int first_idx = point_indices[0];
     double first_val = point_values[0];
     for(int j = 0; j <= first_idx && j < InpFFTWindow; ++j)
-        price_data[j] = first_val;
+        feed_data[j] = first_val;
 
     if(mode == ZIGZAG_CONTINUOUS)
     {
@@ -322,14 +322,14 @@ bool BuildZigZagPriceSeries(const int start_pos,
 
             if(span <= 0)
             {
-                price_data[start_idx] = start_val;
+                feed_data[start_idx] = start_val;
                 continue;
             }
 
             for(int offset = 0; offset <= span && (start_idx + offset) < InpFFTWindow; ++offset)
             {
                 double t = (double)offset / (double)span;
-                price_data[start_idx + offset] = start_val + (end_val - start_val) * t;
+                feed_data[start_idx + offset] = start_val + (end_val - start_val) * t;
             }
         }
     }
@@ -345,14 +345,14 @@ bool BuildZigZagPriceSeries(const int start_pos,
                 continue;
 
             for(int idx = start_idx; idx <= end_idx && idx < InpFFTWindow; ++idx)
-                price_data[idx] = plateau_val;
+                feed_data[idx] = plateau_val;
         }
     }
 
     int last_idx = point_indices[point_count - 1];
     double last_val = point_values[point_count - 1];
     for(int j = last_idx; j < InpFFTWindow; ++j)
-        price_data[j] = last_val;
+        feed_data[j] = last_val;
 
     return true;
 }
@@ -476,10 +476,10 @@ bool BuildPlaPriceSeries(const int start_pos,
   {
    if(!InpEnablePla)
       return false;
-   ArrayCopy(price_data, close, 0, start_pos, InpFFTWindow);
+   ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
    g_pla_seg_count = 0;
    EnsurePlaSegmentCapacity(MathMax(4, InpPlaMaxSegments * 2));
-   PlaSplit(price_data,
+   PlaSplit(feed_data,
             0,
             InpFFTWindow - 1,
             MathMax(1, InpPlaMaxSegments),
@@ -497,7 +497,7 @@ bool BuildPlaPriceSeries(const int start_pos,
          pla_line[i] = slope * (double)i + intercept;
      }
    for(int i = 0; i < InpFFTWindow; ++i)
-      price_data[i] = pla_line[i];
+      feed_data[i] = pla_line[i];
    return true;
   }
 
@@ -928,7 +928,7 @@ bool  g_wave_visible[12];
 color g_wave_colors[12];
 
 //--- Vari?veis globais
-double fft_real[], fft_imag[], price_data[], spectrum[];
+double fft_real[], fft_imag[], feed_data[], spectrum[];
 double pla_line[];
 int    g_pla_seg_starts[], g_pla_seg_ends[];
 double g_pla_seg_slopes[], g_pla_seg_intercepts[];
@@ -2643,7 +2643,7 @@ bool input_visibility[12] =
 
     IndicatorSetString(INDICATOR_SHORTNAME, "CyclePhase-12Cycles-v7.42-NEW");
     
-    ArrayResize(price_data, InpFFTWindow); ArrayResize(detrended_data, InpFFTWindow);
+    ArrayResize(feed_data, InpFFTWindow); ArrayResize(detrended_data, InpFFTWindow);
     ArrayResize(trend_data, InpFFTWindow); ArrayResize(fft_real, InpFFTWindow);
     ArrayResize(fft_imag, InpFFTWindow); ArrayResize(spectrum, InpFFTWindow / 2);
 
@@ -3127,36 +3127,36 @@ switch(InpAppliedPrice)
                 {
                     static double feed_close[]; ArrayResize(feed_close, InpFFTWindow); ArraySetAsSeries(feed_close, true);
                     if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
-                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_close[InpFFTWindow-1-j];
+                    for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_close[InpFFTWindow-1-j];
                 }
-                else ArrayCopy(price_data, close, 0, start_pos, InpFFTWindow);
+                else ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
                 break;
             case FFT_PRICE_OPEN:
                 if(use_alt_tf)
                 {
                     static double feed_open[]; ArrayResize(feed_open, InpFFTWindow); ArraySetAsSeries(feed_open, true);
                     if(CopyOpen(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_open) != InpFFTWindow) continue;
-                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_open[InpFFTWindow-1-j];
+                    for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_open[InpFFTWindow-1-j];
                 }
-                else ArrayCopy(price_data, open, 0, start_pos, InpFFTWindow);
+                else ArrayCopy(feed_data, open, 0, start_pos, InpFFTWindow);
                 break;
             case FFT_PRICE_HIGH:
                 if(use_alt_tf)
                 {
                     static double feed_high[]; ArrayResize(feed_high, InpFFTWindow); ArraySetAsSeries(feed_high, true);
                     if(CopyHigh(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high) != InpFFTWindow) continue;
-                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_high[InpFFTWindow-1-j];
+                    for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_high[InpFFTWindow-1-j];
                 }
-                else ArrayCopy(price_data, high, 0, start_pos, InpFFTWindow);
+                else ArrayCopy(feed_data, high, 0, start_pos, InpFFTWindow);
                 break;
             case FFT_PRICE_LOW:
                 if(use_alt_tf)
                 {
                     static double feed_low[]; ArrayResize(feed_low, InpFFTWindow); ArraySetAsSeries(feed_low, true);
                     if(CopyLow(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low) != InpFFTWindow) continue;
-                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_low[InpFFTWindow-1-j];
+                    for(int j=0;j<InpFFTWindow;j++) feed_data[j] = feed_low[InpFFTWindow-1-j];
                 }
-                else ArrayCopy(price_data, low, 0, start_pos, InpFFTWindow);
+                else ArrayCopy(feed_data, low, 0, start_pos, InpFFTWindow);
                 break;
             case FFT_PRICE_MEDIAN:
                 if(use_alt_tf)
@@ -3166,9 +3166,9 @@ switch(InpAppliedPrice)
                     ArraySetAsSeries(feed_high, true); ArraySetAsSeries(feed_low, true);
                     if(CopyHigh(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high) != InpFFTWindow) continue;
                     if(CopyLow (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low ) != InpFFTWindow) continue;
-                    for(int j=0; j<InpFFTWindow; j++) price_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j]) / 2.0;
+                    for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j]) / 2.0;
                 }
-                else for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j]) / 2.0;
+                else for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (high[start_pos+j] + low[start_pos+j]) / 2.0;
                 break;
             case FFT_PRICE_TYPICAL:
                 if(use_alt_tf)
@@ -3179,9 +3179,9 @@ switch(InpAppliedPrice)
                     if(CopyHigh (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high ) != InpFFTWindow) continue;
                     if(CopyLow  (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low  ) != InpFFTWindow) continue;
                     if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
-                    for(int j=0; j<InpFFTWindow; j++) price_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + feed_close[InpFFTWindow-1-j]) / 3.0;
+                    for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + feed_close[InpFFTWindow-1-j]) / 3.0;
                 }
-                else for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j] + close[start_pos+j]) / 3.0;
+                else for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (high[start_pos+j] + low[start_pos+j] + close[start_pos+j]) / 3.0;
                 break;
             case FFT_PRICE_WEIGHTED:
                 if(use_alt_tf)
@@ -3192,9 +3192,9 @@ switch(InpAppliedPrice)
                     if(CopyHigh (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high ) != InpFFTWindow) continue;
                     if(CopyLow  (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low  ) != InpFFTWindow) continue;
                     if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
-                    for(int j=0; j<InpFFTWindow; j++) price_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + 2*feed_close[InpFFTWindow-1-j]) / 4.0;
+                    for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + 2*feed_close[InpFFTWindow-1-j]) / 4.0;
                 }
-                else for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j] + 2*close[start_pos+j]) / 4.0;
+                else for(int j=0; j<InpFFTWindow; j++) feed_data[j] = (high[start_pos+j] + low[start_pos+j] + 2*close[start_pos+j]) / 4.0;
                 break;
             case FFT_PRICE_ZIGZAG:
               {
@@ -3212,7 +3212,7 @@ switch(InpAppliedPrice)
               {
                 if(!BuildPlaPriceSeries(start_pos, close))
                   {
-                   ArrayCopy(price_data, close, 0, start_pos, InpFFTWindow);
+                   ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
                   }
                 else if(!logged_price_source)
                   {
@@ -3222,7 +3222,7 @@ switch(InpAppliedPrice)
                 break;
               }
             default:
-                ArrayCopy(price_data, close, 0, start_pos, InpFFTWindow);
+                ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
                 if(!logged_price_source)
                 {
                     PrintFormat("[WaveSpecZZ] Step: price series populated using applied price mode=%d", (int)InpAppliedPrice);
@@ -3235,7 +3235,7 @@ switch(InpAppliedPrice)
         //--- Kalman adaptativo sobre o preço aplicado
         if(InpEnableKalman)
         {
-            double meas = price_data[InpFFTWindow - 1]; // valor mais recente da janela
+            double meas = feed_data[InpFFTWindow - 1]; // valor mais recente da janela
             if(!g_k_ready)
                 ResetKalmanState(meas);
             WaveKalman[i] = StepKalman4D(meas);
@@ -3246,7 +3246,7 @@ switch(InpAppliedPrice)
         }
 
         //--- 2. Sem detrend nesta variante nodetrend
-        ArrayCopy(detrended_data, price_data, 0, 0, InpFFTWindow);
+        ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
 
         //--- 3. Aplicar Windowing Function ANTES da FFT para reduzir spectral leakage
         ApplyWindow(detrended_data, InpFFTWindow, InpWindowType);
