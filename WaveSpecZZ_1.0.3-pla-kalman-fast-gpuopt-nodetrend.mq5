@@ -1098,13 +1098,11 @@ struct CycleState {
 
 CycleState g_cycle_states[12];  // Estado de cada um dos 12 ciclos
 
-// Mapeamento estável de tracker->slot (para evitar "repaint" visual)
-int [8];
-
-// --- New auxiliary leakage tracking (independent of old plotting) ---
-int [8];   // leak tracker currently assigned per cycle (-1 if none)
-int [8];   // consecutive bars leak has been active per cycle
-int [8];    // gate by main state: -1,0,+1 (block new leak until state change)
+// Tracker/Leak dummies (logic removed)
+int g_slot_tracker_idx[8];
+int g_aux_leak_tracker_idx[8];
+int g_aux_leak_bars_active[8];
+int g_aux_leak_gate_state[8];
 
 // --- Continuous ETA tracking in seconds (to enforce monotonic countdown)
 double g_last_eta_seconds[8];
