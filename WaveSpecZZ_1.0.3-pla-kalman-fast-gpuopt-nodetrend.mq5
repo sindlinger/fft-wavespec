@@ -977,7 +977,7 @@ input int    InpMaxInactiveBars = 3;     // M?ximo de barras inativas antes de r
 double g_cycle_etas[12];        // ETA atual de cada ciclo (countdown) - 12 ciclos
 double g_cycle_periods[12];     // Per?odo de cada ciclo - 12 ciclos
 int    g_cycle_start_bar[12];   // Barra onde cada ciclo come?ou - 12 ciclos
-bool   g_cycle_active[12];      // Se o ciclo estÃ¡ ativo - 12 ciclos
+bool   g_cycle_active[8];       // Se o ciclo está ativo - 8 ciclos
 bool   g_reset_state_cache = false;  // Sinaliza reset dos estados prÃ©vios
 
 //--- Asymmetric ETA Tracking System (v7.49 - Adaptive Phase Duration Learning)
