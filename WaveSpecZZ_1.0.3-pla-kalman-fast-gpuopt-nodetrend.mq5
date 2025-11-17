@@ -874,7 +874,7 @@ enum FFT_APPLIED_PRICE_SOURCE
    FFT_PRICE_ZIGZAG   = 1000,
    FFT_PRICE_PLA      = 1001
   };
-input FFT_APPLIED_PRICE_SOURCE InpAppliedPrice = FFT_PRICE_ZIGZAG;  // (herdado) não usado nesta variante
+// InpAppliedPrice herdado removido: usamos apenas InpFeedData (PLA/ZigZag/Close)
 input ENUM_TIMEFRAMES InpFeedTimeframe = PERIOD_M1; // Timeframe do feed de preços
 input group "=== Segmenta??o Linear (PLA/PCA) ==="
 input bool   InpEnablePla             = false;   // Ativar segmenta??o PLA local
