@@ -540,8 +540,7 @@ void PlaSplit(const double &series[],
 bool BuildPlaPriceSeries(const int start_pos,
                          const double &close[])
   {
-   if(!InpEnablePla)
-      return false;
+   // Sempre construir PLA nesta variante (sem depender de InpEnablePla)
    ArrayCopy(feed_data, close, 0, start_pos, InpFFTWindow);
    g_pla_seg_count = 0;
    EnsurePlaSegmentCapacity(MathMax(4, InpPlaMaxSegments * 2));
@@ -550,8 +549,13 @@ bool BuildPlaPriceSeries(const int start_pos,
             InpFFTWindow - 1,
             MathMax(1, InpPlaMaxSegments),
             MathMax(1e-8, InpPlaMaxError));
+
+   // Se a segmentação não gerar segmentos, cria um segmento único flat
    if(g_pla_seg_count <= 0)
-      return false;
+     {
+      AppendPlaSegment(0, InpFFTWindow - 1, 0.0, feed_data[0]);
+     }
+
    ArrayResize(pla_line, InpFFTWindow);
    for(int s = 0; s < g_pla_seg_count; ++s)
      {
