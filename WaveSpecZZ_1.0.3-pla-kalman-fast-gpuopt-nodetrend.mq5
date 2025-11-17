@@ -1099,12 +1099,12 @@ struct CycleState {
 CycleState g_cycle_states[12];  // Estado de cada um dos 12 ciclos
 
 // Mapeamento estável de tracker->slot (para evitar "repaint" visual)
-int g_slot_tracker_idx[8];
+int [8];
 
 // --- New auxiliary leakage tracking (independent of old plotting) ---
-int g_aux_leak_tracker_idx[8];   // leak tracker currently assigned per cycle (-1 if none)
-int g_aux_leak_bars_active[8];   // consecutive bars leak has been active per cycle
-int g_aux_leak_gate_state[8];    // gate by main state: -1,0,+1 (block new leak until state change)
+int [8];   // leak tracker currently assigned per cycle (-1 if none)
+int [8];   // consecutive bars leak has been active per cycle
+int [8];    // gate by main state: -1,0,+1 (block new leak until state change)
 
 // --- Continuous ETA tracking in seconds (to enforce monotonic countdown)
 double g_last_eta_seconds[8];
@@ -1547,9 +1547,9 @@ void UpdateStableSlots()
     // Liberar slots com trackers inválidos (sumiram do array)
     for(int s = 0; s < 8; s++)
     {
-        int t = g_slot_tracker_idx[s];
+        int t = [s];
         if(t < 0 || t >= g_tracker_count)
-            g_slot_tracker_idx[s] = -1;
+            [s] = -1;
     }
 
     // Ordenar trackers por power (desc) para seleção dos livres
@@ -1579,7 +1579,7 @@ void UpdateStableSlots()
     ArrayInitialize(g_cycle_active, false);
     for(int s = 0; s < 8; s++)
     {
-        int t = g_slot_tracker_idx[s];
+        int t = [s];
         if(t >= 0 && t < g_tracker_count)
         {
             used[t] = 1;
@@ -1597,7 +1597,7 @@ void UpdateStableSlots()
     // Preencher slots livres com os trackers mais fortes não usados
     for(int s = 0; s < 8; s++)
     {
-        if(g_slot_tracker_idx[s] >= 0 && g_slot_tracker_idx[s] < g_tracker_count)
+        if([s] >= 0 && [s] < g_tracker_count)
             continue; // já preenchido
 
         int chosen = -1;
@@ -1612,7 +1612,7 @@ void UpdateStableSlots()
 
         if(chosen != -1)
         {
-            g_slot_tracker_idx[s] = chosen;
+            [s] = chosen;
             used[chosen] = 1;
             g_cycle_active[s] = true;
             g_dominant_periods[s] = g_period_trackers[chosen].period;
@@ -1621,7 +1621,7 @@ void UpdateStableSlots()
         }
         else
         {
-            g_slot_tracker_idx[s] = -1;
+            [s] = -1;
             g_cycle_active[s] = false;
             g_dominant_periods[s] = 0.0;
             g_dominant_indices[s] = 0;
@@ -2065,8 +2065,8 @@ void PopulateLeakAuxBuffers_New(int bar_index)
 
         if(!g_cycle_active[c])
         {
-            g_aux_leak_tracker_idx[c] = -1;
-            g_aux_leak_bars_active[c] = 0;
+            [c] = -1;
+            [c] = 0;
             // mantém gate como está; será liberado na mudança de estado
         }
         else
@@ -2091,11 +2091,11 @@ void PopulateLeakAuxBuffers_New(int bar_index)
                 }
 
                 // libera gate se mudou de estado
-                if(g_aux_leak_gate_state[c] != 0 && g_aux_leak_gate_state[c] != curr_state)
-                    g_aux_leak_gate_state[c] = 0;
+                if([c] != 0 && [c] != curr_state)
+                    [c] = 0;
 
                 // se gate ativo para esta fase, não iniciar novo leak
-                if(g_aux_leak_gate_state[c] == curr_state && g_aux_leak_gate_state[c] != 0)
+                if([c] == curr_state && [c] != 0)
                 {
                     // skip
                 }
@@ -2117,19 +2117,19 @@ void PopulateLeakAuxBuffers_New(int bar_index)
 
                     if(best != -1)
                     {
-                        if(g_aux_leak_tracker_idx[c] == best) g_aux_leak_bars_active[c]++;
-                        else { g_aux_leak_tracker_idx[c] = best; g_aux_leak_bars_active[c] = 1; }
+                        if([c] == best) [c]++;
+                        else { [c] = best; [c] = 1; }
 
                         double leak_period = g_period_trackers[best].period;
                         int period_i = (int)MathMax(1.0, MathCeil(leak_period));
-                        int remaining_i = period_i - g_aux_leak_bars_active[c];
+                        int remaining_i = period_i - [c];
 
                         if(remaining_i <= 0)
                         {
                             // terminou: bloquear novos leaks até mudar de estado
-                            g_aux_leak_tracker_idx[c] = -1;
-                            g_aux_leak_bars_active[c] = 0;
-                            g_aux_leak_gate_state[c] = curr_state;
+                            [c] = -1;
+                            [c] = 0;
+                            [c] = curr_state;
                         }
                         else
                         {
@@ -2141,16 +2141,16 @@ void PopulateLeakAuxBuffers_New(int bar_index)
                     }
                     else
                     {
-                        g_aux_leak_tracker_idx[c] = -1;
-                        g_aux_leak_bars_active[c] = 0;
+                        [c] = -1;
+                        [c] = 0;
                         // não escrever zeros
                     }
                 }
             }
             else
             {
-                g_aux_leak_tracker_idx[c] = -1;
-                g_aux_leak_bars_active[c] = 0;
+                [c] = -1;
+                [c] = 0;
                 // não escrever zeros
             }
         }
@@ -2170,11 +2170,7 @@ void PopulateLeakAuxBuffers_New(int bar_index)
     }
 }
 
-//+------------------------------------------------------------------+
-//| Detectar mudan?as de estado e registrar (v7.54)                 |
-//+------------------------------------------------------------------+
-void // DetectStateChanges removido nesta variante simplificada
-
+// DetectStateChanges removido nesta variante simplificada
 
 //+------------------------------------------------------------------+
 //| Exportar linha para CSV (v7.54)                                 |
@@ -2433,27 +2429,6 @@ bool input_visibility[12] =
         g_last_eta_seconds[c] = 0.0;
     }
 
-
-    // Inicializar mapeamento estável dos slots
-    for(int s=0; s<8; s++) g_slot_tracker_idx[s] = -1;
-
-    // Inicializar estado de leakage auxiliar
-    for(int c=0; c<8; c++) { g_aux_leak_tracker_idx[c] = -1; g_aux_leak_bars_active[c] = 0; g_aux_leak_gate_state[c] = 0; }
-
-    // Inicializar sistema de CSV export (v7.54)
-    if(InpExportToCSV) {        
-        InitializeCSVExport();
-    }
-
-    // Inicializar hist?rico de transi??es
-    for(int c = 0; c < 8; c++) {
-        g_last_transitions[c].time = 0;
-        g_last_transitions[c].bar_index = -1;
-        g_last_transitions[c].old_state = 0;
-        g_last_transitions[c].new_state = 0;
-        g_last_transitions[c].period = 0;
-        g_last_transitions[c].eta_at_change = 0;
-    }
 
     return(INIT_SUCCEEDED);
 }
@@ -2756,8 +2731,8 @@ int OnCalculate(const int rates_total,
         ArrayInitialize(WaveKalman, 0.0);
         g_k_ready=false; g_k_ema_ready=false;
 
-        for(int s=0; s<8; s++) g_slot_tracker_idx[s] = -1;
-        for(int c=0; c<8; c++) { g_aux_leak_tracker_idx[c] = -1; g_aux_leak_bars_active[c] = 0; g_aux_leak_gate_state[c] = 0; }
+        for(int s=0; s<8; s++) [s] = -1;
+        for(int c=0; c<8; c++) { [c] = -1; [c] = 0; [c] = 0; }
     }
 else
     {
