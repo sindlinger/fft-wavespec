@@ -2741,30 +2741,10 @@ bool input_visibility[12] =
 //+------------------------------------------------------------------+
 void CalculateCycle(int i, const double &price_array[], double &cycle_buffer[], const double period)
 {
-    if(period <= 0 || i < 2) { cycle_buffer[i] = 0; return; }
-
-    // --- CORRE??O "OUT OF RANGE" ---
-    // O array 'price_array' ? o array de pre?os completo do gr?fico (ex: 'close').
-    // Os ?ndices i, i-1, e i-2 s?o v?lidos neste contexto.
-    double p_i   = price_array[i];
-    double p_i_1 = price_array[i-1];
-    double p_i_2 = price_array[i-2];
-
-    // Acessar valores anteriores do pr?prio buffer de ciclo que est? sendo calculado.
-    double c_i_1 = cycle_buffer[i-1];
-    double c_i_2 = cycle_buffer[i-2];
-
-    // --- L?gica do filtro passa-banda (inalterada) ---
-    double omega = 2.0 * M_PI / period;
-    double bw = InpBandwidth; // sem clamp para testar
-    double alpha_filter = sin(omega) * sinh(log(2.0) / 2.0 * bw * omega / sin(omega));
-    double b0 = alpha_filter, b1 = 0, b2 = -alpha_filter;
-    double a0 = 1.0 + alpha_filter, a1 = -2.0 * cos(omega), a2 = 1.0 - alpha_filter;
-    // sem normalização por a0: usar coeficientes brutos
-    
-    // C?lculo final usando as vari?veis seguras
-    cycle_buffer[i] = b0 * p_i + b1 * p_i_1 + b2 * p_i_2 - a1 * c_i_1 - a2 * c_i_2;
+    if(period <= 0 || i < 0) { cycle_buffer[i] = 0; return; }
+    cycle_buffer[i] = price_array[i];
 }
+
 
 //+------------------------------------------------------------------+
 //| ASYMMETRIC ETA HELPER FUNCTIONS (v7.49)                         |
