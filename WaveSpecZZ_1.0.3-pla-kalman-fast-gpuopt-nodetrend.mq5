@@ -570,10 +570,10 @@ bool BuildPlaPriceSeries(const int start_pos,
    ArrayResize(pla_line, InpFFTWindow);
    for(int s = 0; s < g_pla_seg_count; ++s)
      {
-      const int seg_start = g_pla_seg_starts[s];
-      const int seg_end   = g_pla_seg_ends[s];
-      const double slope = g_pla_seg_slopes[s];
-      const double intercept = g_pla_seg_intercepts[s];
+      const int seg_start = g_pla_seg_starts-1;
+      const int seg_end   = g_pla_seg_ends-1;
+      const double slope = g_pla_seg_slopes-1;
+      const double intercept = g_pla_seg_intercepts-1;
       for(int i = seg_start; i <= seg_end && i < InpFFTWindow; ++i)
          pla_line[i] = slope * (double)i + intercept;
      }
@@ -969,14 +969,8 @@ double WavePeriodBuffer1[],  WavePeriodBuffer2[],  WavePeriodBuffer3[],  WavePer
 double WavePeriodBuffer5[],  WavePeriodBuffer6[],  WavePeriodBuffer7[],  WavePeriodBuffer8[];
 
 //--- Buffers de ETA ajustada (Wave 1..12 exibidas)
-double EtaCycle1[],   EtaCycle2[],   EtaCycle3[],   EtaCycle4[];
-double EtaCycle5[],   EtaCycle6[],   EtaCycle7[],   EtaCycle8[];
-double EtaCycle9[],   EtaCycle10[],  EtaCycle11[],  EtaCycle12[];
 
 //--- Buffers de ETA bruta (Wave 1..12 - l?gica interna)
-double EtaRawCycle1[],  EtaRawCycle2[],  EtaRawCycle3[],  EtaRawCycle4[];
-double EtaRawCycle5[],  EtaRawCycle6[],  EtaRawCycle7[],  EtaRawCycle8[];
-double EtaRawCycle9[],  EtaRawCycle10[], EtaRawCycle11[], EtaRawCycle12[];
 
 //--- Buffers de ETA LEAKAGE (Wave 1..12 - intrus?es detectadas)
 
@@ -1003,11 +997,11 @@ double detrended_data[], trend_data[];
 double fft_phase[];           // Array de fases dos coeficientes FFT
 double fft_unwrapped_phase[]; // Fase unwrapped para continuidade
 double fft_group_delay[];     // Group delay calculado da fase
-int g_dominant_indices[12];   // ?ndices FFT dos 12 ciclos dominantes
+top_indices;   // ?ndices FFT dos 12 ciclos dominantes
 
 //--- Estrutura para ajudar a ordenar os ciclos
 struct CycleInfo { int index; double power; };
-double g_dominant_periods[8]; // Armazena os per?odos dominantes para cada barra (12 ciclos)
+top_periods; // Armazena os per?odos dominantes para cada barra (12 ciclos)
 
 //+------------------------------------------------------------------+
 //| PERSISTENT PERIOD TRACKING SYSTEM (v7.52 - NEW)                 |
@@ -1028,8 +1022,8 @@ struct PeriodTracker {
     int      phase_change_count;     // Contador de mudan?as de fase
 };
 
-PeriodTracker g_period_trackers[];  // Array din?mico de trackers
-int g_tracker_count = 0;             // Quantidade de trackers ativos
+PeriodTracker [];  // Array din?mico de trackers
+int 0 = 0;             // Quantidade de trackers ativos
 
 // Configura??es do sistema de tracking
 input double InpTrackerTolerance = 5.0;  // Toler?ncia de matching (% diferen?a)
@@ -1039,7 +1033,7 @@ input int    InpMaxInactiveBars = 3;     // M?ximo de barras inativas antes de r
 double g_cycle_etas[8];        // ETA atual de cada ciclo (countdown) - 12 ciclos
 double g_cycle_periods[8];     // Per?odo de cada ciclo - 12 ciclos
 int    g_cycle_start_bar[8];   // Barra onde cada ciclo come?ou - 12 ciclos
-bool   g_cycle_active[8];       // Se o ciclo está ativo - 8 ciclos
+bool   top_active[8];       // Se o ciclo está ativo - 8 ciclos
 bool   g_reset_state_cache = false;  // Sinaliza reset dos estados prÃ©vios
 
 //--- Asymmetric ETA Tracking System (v7.49 - Adaptive Phase Duration Learning)
@@ -1089,12 +1083,11 @@ struct CycleState {
     datetime leak_start_time;      // Quando a intrus?o come?ou
 };
 
-CycleState g_cycle_states[12];  // Estado de cada um dos 12 ciclos
+CycleState [12];  // Estado de cada um dos 12 ciclos
 
 // Tracker/Leak dummies (logic removed)
 
 // --- Continuous ETA tracking in seconds (to enforce monotonic countdown)
-double g_last_eta_seconds[8];
 
 // Configura??es de detec??o de leakage
 const double InpLeakPeriodRatio = 0.0;
@@ -1419,15 +1412,7 @@ double GetColorBufferValue(int cycle_idx, int bar_idx)
     return EMPTY_VALUE;
 }
 
-double GetCycleStateValue(int cycle_idx, int bar_idx)
-{
-    if(cycle_idx < 0 || cycle_idx >= 12 || bar_idx < 0) return 0.0;
-    if(!g_cycle_active[cycle_idx]) return 0.0;
 
-    double color_value = GetColorBufferValue(cycle_idx, bar_idx);
-    if(color_value == EMPTY_VALUE) return 0.0;
-    return (color_value > 0.5) ? 1.0 : -1.0;
-}
 
 // --- Fun??o para ETA Buffers ---
 {
@@ -1685,8 +1670,8 @@ double StepKalman4D(double z)
         // Verificar se este ciclo tem leak ativo
         {
             // Calcular ETA do leak (mesmo metodo do principal, mas com periodo do leak)
-            double leak_period = g_period_trackers[leak_idx].period;
-            int leak_fft_idx = g_period_trackers[leak_idx].fft_index;
+            double leak_period = [leak_idx].period;
+            int leak_fft_idx = [leak_idx].fft_index;
 
             double leak_phase_target_bars = MathMax(1.0, leak_period);
 
@@ -1730,7 +1715,7 @@ double StepKalman4D(double z)
         bool wrote = false;
         double leak_val = 0.0;
 
-        if(!g_cycle_active[c])
+        if(!top_active[c])
         {
             [c] = -1;
             [c] = 0;
@@ -1738,11 +1723,11 @@ double StepKalman4D(double z)
         }
         else
         {
-            int main_idx = g_cycle_states[c].main_tracker_idx;
-            if(main_idx >= 0 && main_idx < g_tracker_count)
+            int main_idx = [c].main_tracker_idx;
+            if(main_idx >= 0 && main_idx < 0)
             {
-                double main_period = g_period_trackers[main_idx].period;
-                double main_power  = g_period_trackers[main_idx].power;
+                double main_period = [main_idx].period;
+                double main_power  = [main_idx].power;
 
                 // estado atual da linha (cor)
                 int curr_state = 0;
@@ -1770,12 +1755,12 @@ double StepKalman4D(double z)
                 {
                     // selecionar melhor leak
                     int best = -1; double best_pwr = 0.0;
-                    for(int t = 0; t < g_tracker_count; t++)
+                    for(int t = 0; t < 0; t++)
                     {
                         if(t == main_idx) continue;
-                        if(g_period_trackers[t].bars_inactive > InpLeakMinBars) continue;
-                        double p = g_period_trackers[t].period;
-                        double pw = g_period_trackers[t].power;
+                        if([t].bars_inactive > InpLeakMinBars) continue;
+                        double p = [t].period;
+                        double pw = [t].power;
                         if(p < main_period * InpLeakPeriodRatio && pw >= main_power * InpLeakPowerRatio)
                         {
                             if(best == -1 || pw > best_pwr) { best = t; best_pwr = pw; }
@@ -1787,7 +1772,7 @@ double StepKalman4D(double z)
                         if([c] == best) [c]++;
                         else { [c] = best; [c] = 1; }
 
-                        double leak_period = g_period_trackers[best].period;
+                        double leak_period = [best].period;
                         int period_i = (int)MathMax(1.0, MathCeil(leak_period));
                         int remaining_i = period_i - [c];
 
@@ -1864,7 +1849,7 @@ void ExportToCSV(datetime time, int bar_index)
     for(int c = 0; c < 8; c++)
     {
         double state = GetCycleStateValue(c, bar_index);
-        double period = g_dominant_periods[c];
+        double period = top_periods[c];
         double leak = 0.0;
 
         switch(c) {
@@ -1893,16 +1878,16 @@ void ShowCycleListDebug()
     string s = "Cycles (Top12):\n";
     for(int c = 0; c < 8; c++)
     {
-        if(!g_cycle_active[c])
+        if(!top_active[c])
         {
             s += StringFormat("C%d: inactive\n", c+1);
             continue;
         }
 
-        int main_idx = g_cycle_states[c].main_tracker_idx;
-        double per = g_dominant_periods[c];
-        int bin = g_dominant_indices[c];
-        double pwr = (main_idx>=0 && main_idx<g_tracker_count) ? g_period_trackers[main_idx].power : 0.0;
+        int main_idx = [c].main_tracker_idx;
+        double per = top_periods[c];
+        int bin = top_indices[c];
+        double pwr = (main_idx>=0 && main_idx<0) ? [main_idx].power : 0.0;
 
         // Frequency and number of cycles in the FFT window
         int n_phase = ArraySize(fft_unwrapped_phase);
@@ -1913,8 +1898,8 @@ void ShowCycleListDebug()
 
         string leak = "-";
         {
-            if(li>=0 && li<g_tracker_count)
-                leak = StringFormat("%.1f", g_period_trackers[li].period);
+            if(li>=0 && li<0)
+                leak = StringFormat("%.1f", [li].period);
         }
 
         // Optional: show RealFFT group delay when mode is enabled
@@ -2045,7 +2030,7 @@ bool input_visibility[12] =
         g_cycle_periods[c] = 0;      // Ser? preenchido pela FFT
         g_cycle_etas[c] = 0;         // Ser? calculado ap?s FFT detectar per?odos
         g_cycle_start_bar[c] = 0;
-        g_cycle_active[c] = false;   // Ser? ativado quando FFT detectar ciclos
+        top_active[c] = false;   // Ser? ativado quando FFT detectar ciclos
     }
 
     // Inicializar sistema de ETA cient?fico (v7.51)
@@ -2055,13 +2040,13 @@ bool input_visibility[12] =
             g_bearish_phase_durations[c][h] = 0;
         }
         g_phase_change_count[c] = 0;
-        g_dominant_indices[c] = 0;
+        top_indices[c] = 0;
     }
 
     // Inicializar CycleStates (v7.53)
     for(int c = 0; c < 8; c++) {
-        g_cycle_states[c].main_tracker_idx = -1;
-        g_cycle_states[c].main_eta_continuous = 0.0;
+        [c].main_tracker_idx = -1;
+        [c].main_eta_continuous = 0.0;
             g_phase_duration_estimate[c][0] = 0.0;
             g_phase_duration_estimate[c][1] = 0.0;
         g_last_eta_seconds[c] = 0.0;
@@ -2214,7 +2199,7 @@ void UpdateCycleEtaAndState(int i, int c, const double &cycle_buffer[], double &
         color_buffer[i] = start_bullish ? 1.0 : 0.0;
         eta_buffer[i] = 0.0;
         eta_raw_buffer[i] = 0.0;
-        g_cycle_states[c].main_eta_continuous = 0.0;
+        [c].main_eta_continuous = 0.0;
         g_last_eta_seconds[c] = 0.0;
         return;
     }
@@ -2225,14 +2210,14 @@ void UpdateCycleEtaAndState(int i, int c, const double &cycle_buffer[], double &
     bool is_bullish = (cycle_buffer[i] >= cycle_buffer[i-1]);
     color_buffer[i] = is_bullish ? 1.0 : 0.0;
 
-    double period_bars = g_dominant_periods[c];
-    int effective_fft_index = g_dominant_indices[c];
+    double period_bars = top_periods[c];
+    int effective_fft_index = top_indices[c];
 
     if(period_bars <= 0.0)
     {
         eta_buffer[i] = 0.0;
         eta_raw_buffer[i] = 0.0;
-        g_cycle_states[c].main_eta_continuous = 0.0;
+        [c].main_eta_continuous = 0.0;
         g_last_eta_seconds[c] = 0.0;
         return;
     }
@@ -2266,7 +2251,7 @@ void UpdateCycleEtaAndState(int i, int c, const double &cycle_buffer[], double &
         eta_display = 1.0;
 
     eta_buffer[i] = eta_display;
-    g_cycle_states[c].main_eta_continuous = eta_seconds;
+    [c].main_eta_continuous = eta_seconds;
     g_last_eta_seconds[c] = eta_seconds;
 }
 
@@ -2351,13 +2336,13 @@ int OnCalculate(const int rates_total,
         ArrayInitialize(SigBuffer9, 0.0);  ArrayInitialize(SigBuffer10, 0.0);
         ArrayInitialize(SigBuffer11,0.0);  ArrayInitialize(SigBuffer12,0.0);
 
-        ArrayResize(g_period_trackers, 0);
-        g_tracker_count = 0;
+        ArrayResize(, 0);
+        0 = 0;
 
         ArrayInitialize(WaveKalman, 0.0);
         g_k_ready=false; g_k_ema_ready=false;
 
-        for(int s=0; s<8; s++) [s] = -1;
+        for(int s=0; s<8; s++) -1 = -1;
         for(int c=0; c<8; c++) { [c] = -1; [c] = 0; [c] = 0; }
     }
 else
