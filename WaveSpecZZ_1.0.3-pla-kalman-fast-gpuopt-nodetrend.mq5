@@ -3110,15 +3110,92 @@ else
         if(start_pos < 0)
             continue;
 
-        switch(InpAppliedPrice)
+                // Se feed timeframe diferente, copiar do feed
+        bool use_alt_tf = (InpFeedTimeframe != PERIOD_CURRENT && InpAppliedPrice != FFT_PRICE_ZIGZAG && InpAppliedPrice != FFT_PRICE_PLA);
+        int feed_shift = -1;
+        if(use_alt_tf)
         {
-            case FFT_PRICE_CLOSE:     ArrayCopy(price_data, close, 0, start_pos, InpFFTWindow); break;
-            case FFT_PRICE_OPEN:      ArrayCopy(price_data, open,  0, start_pos, InpFFTWindow); break;
-            case FFT_PRICE_HIGH:      ArrayCopy(price_data, high,  0, start_pos, InpFFTWindow); break;
-            case FFT_PRICE_LOW:       ArrayCopy(price_data, low,   0, start_pos, InpFFTWindow); break;
-            case FFT_PRICE_MEDIAN:    for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j]) / 2.0; break;
-            case FFT_PRICE_TYPICAL:   for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j] + close[start_pos+j]) / 3.0; break;
-            case FFT_PRICE_WEIGHTED:  for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j] + 2*close[start_pos+j]) / 4.0; break;
+            feed_shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
+            if(feed_shift < 0)
+                continue;
+        }
+
+switch(InpAppliedPrice)
+        {
+            case FFT_PRICE_CLOSE:
+                if(use_alt_tf)
+                {
+                    static double feed_close[]; ArrayResize(feed_close, InpFFTWindow); ArraySetAsSeries(feed_close, true);
+                    if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
+                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_close[InpFFTWindow-1-j];
+                }
+                else ArrayCopy(price_data, close, 0, start_pos, InpFFTWindow);
+                break;
+            case FFT_PRICE_OPEN:
+                if(use_alt_tf)
+                {
+                    static double feed_open[]; ArrayResize(feed_open, InpFFTWindow); ArraySetAsSeries(feed_open, true);
+                    if(CopyOpen(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_open) != InpFFTWindow) continue;
+                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_open[InpFFTWindow-1-j];
+                }
+                else ArrayCopy(price_data, open, 0, start_pos, InpFFTWindow);
+                break;
+            case FFT_PRICE_HIGH:
+                if(use_alt_tf)
+                {
+                    static double feed_high[]; ArrayResize(feed_high, InpFFTWindow); ArraySetAsSeries(feed_high, true);
+                    if(CopyHigh(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high) != InpFFTWindow) continue;
+                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_high[InpFFTWindow-1-j];
+                }
+                else ArrayCopy(price_data, high, 0, start_pos, InpFFTWindow);
+                break;
+            case FFT_PRICE_LOW:
+                if(use_alt_tf)
+                {
+                    static double feed_low[]; ArrayResize(feed_low, InpFFTWindow); ArraySetAsSeries(feed_low, true);
+                    if(CopyLow(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low) != InpFFTWindow) continue;
+                    for(int j=0;j<InpFFTWindow;j++) price_data[j] = feed_low[InpFFTWindow-1-j];
+                }
+                else ArrayCopy(price_data, low, 0, start_pos, InpFFTWindow);
+                break;
+            case FFT_PRICE_MEDIAN:
+                if(use_alt_tf)
+                {
+                    static double feed_high[]; static double feed_low[];
+                    ArrayResize(feed_high, InpFFTWindow); ArrayResize(feed_low, InpFFTWindow);
+                    ArraySetAsSeries(feed_high, true); ArraySetAsSeries(feed_low, true);
+                    if(CopyHigh(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high) != InpFFTWindow) continue;
+                    if(CopyLow (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low ) != InpFFTWindow) continue;
+                    for(int j=0; j<InpFFTWindow; j++) price_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j]) / 2.0;
+                }
+                else for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j]) / 2.0;
+                break;
+            case FFT_PRICE_TYPICAL:
+                if(use_alt_tf)
+                {
+                    static double feed_high[]; static double feed_low[]; static double feed_close[];
+                    ArrayResize(feed_high, InpFFTWindow); ArrayResize(feed_low, InpFFTWindow); ArrayResize(feed_close, InpFFTWindow);
+                    ArraySetAsSeries(feed_high, true); ArraySetAsSeries(feed_low, true); ArraySetAsSeries(feed_close, true);
+                    if(CopyHigh (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high ) != InpFFTWindow) continue;
+                    if(CopyLow  (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low  ) != InpFFTWindow) continue;
+                    if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
+                    for(int j=0; j<InpFFTWindow; j++) price_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + feed_close[InpFFTWindow-1-j]) / 3.0;
+                }
+                else for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j] + close[start_pos+j]) / 3.0;
+                break;
+            case FFT_PRICE_WEIGHTED:
+                if(use_alt_tf)
+                {
+                    static double feed_high[]; static double feed_low[]; static double feed_close[];
+                    ArrayResize(feed_high, InpFFTWindow); ArrayResize(feed_low, InpFFTWindow); ArrayResize(feed_close, InpFFTWindow);
+                    ArraySetAsSeries(feed_high, true); ArraySetAsSeries(feed_low, true); ArraySetAsSeries(feed_close, true);
+                    if(CopyHigh (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_high ) != InpFFTWindow) continue;
+                    if(CopyLow  (_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_low  ) != InpFFTWindow) continue;
+                    if(CopyClose(_Symbol, InpFeedTimeframe, feed_shift, InpFFTWindow, feed_close) != InpFFTWindow) continue;
+                    for(int j=0; j<InpFFTWindow; j++) price_data[j] = (feed_high[InpFFTWindow-1-j] + feed_low[InpFFTWindow-1-j] + 2*feed_close[InpFFTWindow-1-j]) / 4.0;
+                }
+                else for(int j=0; j<InpFFTWindow; j++) price_data[j] = (high[start_pos+j] + low[start_pos+j] + 2*close[start_pos+j]) / 4.0;
+                break;
             case FFT_PRICE_ZIGZAG:
               {
                 ENUM_TIMEFRAMES zig_tf = GetActiveZigZagTimeframe();
