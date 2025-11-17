@@ -139,7 +139,10 @@ bool EnsureWaveformGpuConfigured(const int length)
 
 ENUM_TIMEFRAMES ResolveTimeframe(const ENUM_TIMEFRAMES tf)
 {
-    return (ENUM_TIMEFRAMES)_Period; // timeframe centralizado
+    ENUM_TIMEFRAMES resolved = tf;
+    if(resolved == PERIOD_CURRENT)
+        resolved = (ENUM_TIMEFRAMES)_Period;
+    return resolved;
 }
 
 static const ENUM_TIMEFRAMES kTimeframeOrder[] =
@@ -248,7 +251,8 @@ int GetZigZagHandleForTf(const ENUM_TIMEFRAMES tf)
 
 ENUM_TIMEFRAMES GetActiveZigZagTimeframe()
 {
-    return (ENUM_TIMEFRAMES)_Period; // sempre o timeframe do gráfico atual
+    // Usa o timeframe centralizado definido em InpFeedTimeframe
+    return ResolveTimeframe(InpFeedTimeframe);
 }
 
 // DetermineLowerTimeframe não é usado nesta variante centralizada
@@ -2353,8 +2357,8 @@ int OnInit()
     ResetZigZagHandles();
     if(InpFeedData == FEED_ZIGZAG)
     {
-        ENUM_TIMEFRAMES tf_current = (ENUM_TIMEFRAMES)_Period;
-        if(!EnsureZigZagHandleForTf(tf_current))
+        ENUM_TIMEFRAMES tf_feed = ResolveTimeframe(InpFeedTimeframe);
+        if(!EnsureZigZagHandleForTf(tf_feed))
             return(INIT_FAILED);
     }
 
