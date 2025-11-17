@@ -3,10 +3,10 @@
 #property link      ""
 #property version   "1.005"
 #property indicator_separate_window
-#property indicator_buffers 16
-#property indicator_plots   8
+#property indicator_buffers 20
+#property indicator_plots   9
 
-// Buffers ZigZag mínimo (picos/fundos) para construir feed
+// Buffers ZigZag mínimo (picos/fundos) para construir feed (calculations only)
 double ZigzagPeakBuffer[], ZigzagBottomBuffer[], ColorBuffer[], HighMapBuffer[], LowMapBuffer[];
 
 #import "mt-bridge.dll"
@@ -36,6 +36,9 @@ input int InpZigZagDeviation= 5;
 input int InpZigZagBackstep = 3;
 enum ZIG_MODE { ZIG_STEP = 0, ZIG_INTERP = 1, ZIG_MID = 2 };
 input ZIG_MODE InpZigZagMode = ZIG_STEP;
+
+// Debug visual: exibe o feed corrente em um sublabel
+input bool InpShowFeedLabel = true;
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -75,12 +78,20 @@ input double InpKalmanFollowStrength  = 1.0;
 #property indicator_color8  clrGray
 #property indicator_width8  1
 
+// Label buffer to show feed mode visually (plot 9)
+#property indicator_type9   DRAW_LINE
+#property indicator_label9  "FeedLabel"
+#property indicator_color9  clrWhite
+#property indicator_style9  STYLE_DOT
+#property indicator_width9  1
+
 
 double WaveBuffer1[],WaveBuffer2[],WaveBuffer3[],WaveBuffer4[];
 double WaveBuffer5[],WaveBuffer6[],WaveBuffer7[],WaveBuffer8[];
 double WavePeriod1[],WavePeriod2[],WavePeriod3[],WavePeriod4[];
 double WavePeriod5[],WavePeriod6[],WavePeriod7[],WavePeriod8[];
 double WaveKalman[];
+double FeedLabel[];
 
 double feed_data[], detrended_data[];
 double g_fft_interleaved[], fft_real[], fft_imag[], spectrum[];
@@ -94,13 +105,7 @@ int OnInit()
     if(InpFeedData == FEED_ZIGZAG && g_zig_handle == INVALID_HANDLE)
         return(INIT_FAILED);
 
-    // Buffers ZigZag (não plotados neste indicador, só para feed)
-    SetIndexBuffer(0,ZigzagPeakBuffer,INDICATOR_DATA);
-    SetIndexBuffer(1,ZigzagBottomBuffer,INDICATOR_DATA);
-    SetIndexBuffer(2,ColorBuffer,INDICATOR_COLOR_INDEX);
-    SetIndexBuffer(3,HighMapBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(4,LowMapBuffer,INDICATOR_CALCULATIONS);
-
+    // Waves (plots 0-7)
     SetIndexBuffer(0, WaveBuffer1, INDICATOR_DATA);
     SetIndexBuffer(1, WaveBuffer2, INDICATOR_DATA);
     SetIndexBuffer(2, WaveBuffer3, INDICATOR_DATA);
@@ -110,14 +115,25 @@ int OnInit()
     SetIndexBuffer(6, WaveBuffer7, INDICATOR_DATA);
     SetIndexBuffer(7, WaveBuffer8, INDICATOR_DATA);
 
-    SetIndexBuffer(8, WavePeriod1, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(9, WavePeriod2, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(10,WavePeriod3, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(11,WavePeriod4, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(12,WavePeriod5, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(13,WavePeriod6, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(14,WavePeriod7, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(15,WavePeriod8, INDICATOR_CALCULATIONS);
+    // Feed label (plot 8)
+    SetIndexBuffer(8, FeedLabel, INDICATOR_DATA);
+
+    // Period buffers (calc)
+    SetIndexBuffer(9, WavePeriod1, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(10, WavePeriod2, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(11, WavePeriod3, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(12, WavePeriod4, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(13, WavePeriod5, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(14, WavePeriod6, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(15, WavePeriod7, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(16, WavePeriod8, INDICATOR_CALCULATIONS);
+
+    // ZigZag buffers (calc slots 17-21)
+    SetIndexBuffer(17, ZigzagPeakBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(18, ZigzagBottomBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(19, ColorBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(20, HighMapBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(21, LowMapBuffer,INDICATOR_CALCULATIONS);
 
     return(INIT_SUCCEEDED);
 }
