@@ -2714,10 +2714,10 @@ bool input_visibility[12] =
 
 
     // Inicializar mapeamento estável dos slots
-    for(int s=0; s<12; s++) g_slot_tracker_idx[s] = -1;
+    for(int s=0; s<8; s++) g_slot_tracker_idx[s] = -1;
 
     // Inicializar estado de leakage auxiliar
-    for(int c=0; c<12; c++) { g_aux_leak_tracker_idx[c] = -1; g_aux_leak_bars_active[c] = 0; g_aux_leak_gate_state[c] = 0; }
+    for(int c=0; c<8; c++) { g_aux_leak_tracker_idx[c] = -1; g_aux_leak_bars_active[c] = 0; g_aux_leak_gate_state[c] = 0; }
 
     // Inicializar sistema de CSV export (v7.54)
     if(InpExportToCSV) {        
