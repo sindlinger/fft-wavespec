@@ -263,7 +263,11 @@ int OnCalculate(const int rates_total,
             if(top_bin[s]>0)
             {
                 period = (double)InpFFTWindow / (double)top_bin[s];
-                amp = MathSqrt(top_pow[s]);
+                double mag = MathSqrt(top_pow[s]);
+                // Reconstrução aproximada no último ponto da janela usando fase da FFT
+                double phase = MathArctan2(fft_imag[top_bin[s]], fft_real[top_bin[s]]);
+                double n = (double)(InpFFTWindow-1);
+                amp = (mag / (double)InpFFTWindow) * MathCos(phase + 2.0*M_PI*(double)top_bin[s]*n/(double)InpFFTWindow);
             }
             switch(s)
             {
