@@ -1545,10 +1545,10 @@ void GetTop12Trackers()
         }
     }
 
-    // Preencher arrays de dominantes (top 12)
+    // Preencher arrays de dominantes (top 8)
     ArrayInitialize(g_cycle_active, false);
 
-    int count = MathMin(12, g_tracker_count);
+    int count = MathMin(8, g_tracker_count);
     for(int i = 0; i < count; i++)
     {
         int tracker_idx = sorted_indices[i];
@@ -1570,7 +1570,7 @@ void GetTop12Trackers()
 void UpdateStableSlots()
 {
     // Liberar slots com trackers inválidos (sumiram do array)
-    for(int s = 0; s < 12; s++)
+    for(int s = 0; s < 8; s++)
     {
         int t = g_slot_tracker_idx[s];
         if(t < 0 || t >= g_tracker_count)
@@ -1602,7 +1602,7 @@ void UpdateStableSlots()
 
     // Marcar e manter os trackers já mapeados em cada slot
     ArrayInitialize(g_cycle_active, false);
-    for(int s = 0; s < 12; s++)
+    for(int s = 0; s < 8; s++)
     {
         int t = g_slot_tracker_idx[s];
         if(t >= 0 && t < g_tracker_count)
@@ -1620,7 +1620,7 @@ void UpdateStableSlots()
     }
 
     // Preencher slots livres com os trackers mais fortes não usados
-    for(int s = 0; s < 12; s++)
+    for(int s = 0; s < 8; s++)
     {
         if(g_slot_tracker_idx[s] >= 0 && g_slot_tracker_idx[s] < g_tracker_count)
             continue; // já preenchido
