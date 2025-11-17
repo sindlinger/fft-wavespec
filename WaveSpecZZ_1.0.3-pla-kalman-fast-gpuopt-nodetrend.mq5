@@ -715,7 +715,6 @@ inline color ApplyPaletteAdjustments(const color base, const double gamma, const
 
 color default_palette[12];
 
-
 //--- Plot 1 (Wave1)
 #property indicator_label1  "Wave1"
 #property indicator_type1   DRAW_LINE
@@ -980,9 +979,6 @@ double EtaRawCycle5[],  EtaRawCycle6[],  EtaRawCycle7[],  EtaRawCycle8[];
 double EtaRawCycle9[],  EtaRawCycle10[], EtaRawCycle11[], EtaRawCycle12[];
 
 //--- Buffers de ETA LEAKAGE (Wave 1..12 - intrus?es detectadas)
-double LeakETA1[],  LeakETA2[],  LeakETA3[],  LeakETA4[];
-double LeakETA5[],  LeakETA6[],  LeakETA7[],  LeakETA8[];
-double LeakETA9[],  LeakETA10[], LeakETA11[], LeakETA12[];
 
 //--- Buffers FOLLOW FIRST (Wave 1..12 - sinais discretos)
 // Valores: +100 (entrada compra), -100 (entrada venda), ±60 (pr?-sinal), 0 (inativo)
@@ -1066,8 +1062,6 @@ bool   g_k_ema_ready=false;
 
 //--- ZigZag support (WaveSpecZZ mode)
 
-
-
 //| STATE CHANGE TRACKING (v7.54 - NEW)                             |
 //+------------------------------------------------------------------+
 struct PhaseTransition {
@@ -1076,7 +1070,6 @@ struct PhaseTransition {
     double   old_state;      // Estado anterior (-1, 0, +1)
     double   new_state;      // Novo estado
     double   period;         // Per?odo do ciclo naquele momento
-    double   eta_at_change;  // ETA no momento da mudan?a
 };
 
 PhaseTransition g_last_transitions[12];  // ?ltima transi??o de cada ciclo
@@ -1099,10 +1092,6 @@ struct CycleState {
 CycleState g_cycle_states[12];  // Estado de cada um dos 12 ciclos
 
 // Tracker/Leak dummies (logic removed)
-int g_slot_tracker_idx[8];
-int g_aux_leak_tracker_idx[8];
-int g_aux_leak_bars_active[8];
-int g_aux_leak_gate_state[8];
 
 // --- Continuous ETA tracking in seconds (to enforce monotonic countdown)
 double g_last_eta_seconds[8];
@@ -1112,7 +1101,6 @@ const double InpLeakPeriodRatio = 0.0;
 const int    InpLeakMinBars     = 0;
 const int    InpLeakMaxBars     = 0;
 const double InpLeakPowerRatio  = 0.0;
-
 
 //+------------------------------------------------------------------+
 //| STATE MAPPING CONFIGURATION (v7.54)                             |
@@ -1531,8 +1519,6 @@ void GetTop12Trackers()
 
         // Inicializar CycleState para este ciclo
         g_cycle_states[i].main_tracker_idx = tracker_idx;
-        g_cycle_states[i].leak_tracker_idx = -1;  // Nenhum leak por padr?o
-        g_cycle_states[i].is_leak_active = false;
     }
 }
 
@@ -1636,7 +1622,6 @@ void UpdateStableSlots()
 //| Verifica se um tracker ? intrus?o tempor?ria                    |
 //| Crit?rios: per?odo < 30% do principal, power alto, recente      |
 //+------------------------------------------------------------------+
-bool IsLeakage(int candidate_idx, int main_tracker_idx)
 {
     return false; // leakage desativado
 }
@@ -1645,10 +1630,7 @@ bool IsLeakage(int candidate_idx, int main_tracker_idx)
 //| Detecta e associa leakages aos ciclos principais               |
 //| Chamado após GetTop12Trackers()                                |
 //+------------------------------------------------------------------+
-void DetectLeakages()
-{
-    // leakage desativado
-}
+
 //+------------------------------------------------------------------+
 //| FUN??ES AUXILIARES DE ACESSO A BUFFERS (Refatora??o v7.57)       |
 //+------------------------------------------------------------------+
@@ -1723,14 +1705,7 @@ double GetCycleStateValue(int cycle_idx, int bar_idx)
     return (color_value > 0.5) ? 1.0 : -1.0;
 }
 
-void CollectCycleStates(int bar_index, double &states[])
-{
-    for(int c = 0; c < 8; c++)
-        states[c] = GetCycleStateValue(c, bar_index);
-}
-
 // --- Fun??o para ETA Buffers ---
-double GetEtaBufferValue(int cycle_idx, int bar_idx)
 {
     if(cycle_idx < 0 || cycle_idx >= 12 || bar_idx < 0) return 0.0;
     switch(cycle_idx)
@@ -1751,7 +1726,6 @@ double GetEtaBufferValue(int cycle_idx, int bar_idx)
     return 0.0;
 }
 
-double GetEtaRawValue(int cycle_idx, int bar_idx)
 {
     if(cycle_idx < 0 || cycle_idx >= 12 || bar_idx < 0) return 0.0;
     switch(cycle_idx)
@@ -1824,19 +1798,6 @@ void EnsureAuxBuffersSize(int size)
     if(ArraySize(ColorBuffer6)  < size) ArrayResize(ColorBuffer6,  size);
     if(ArraySize(ColorBuffer7)  < size) ArrayResize(ColorBuffer7,  size);
     if(ArraySize(ColorBuffer8)  < size) ArrayResize(ColorBuffer8,  size);
-
-    if(ArraySize(LeakETA1)  < size) ArrayResize(LeakETA1,  size);
-    if(ArraySize(LeakETA2)  < size) ArrayResize(LeakETA2,  size);
-    if(ArraySize(LeakETA3)  < size) ArrayResize(LeakETA3,  size);
-    if(ArraySize(LeakETA4)  < size) ArrayResize(LeakETA4,  size);
-    if(ArraySize(LeakETA5)  < size) ArrayResize(LeakETA5,  size);
-    if(ArraySize(LeakETA6)  < size) ArrayResize(LeakETA6,  size);
-    if(ArraySize(LeakETA7)  < size) ArrayResize(LeakETA7,  size);
-    if(ArraySize(LeakETA8)  < size) ArrayResize(LeakETA8,  size);
-    if(ArraySize(LeakETA9)  < size) ArrayResize(LeakETA9,  size);
-    if(ArraySize(LeakETA10) < size) ArrayResize(LeakETA10, size);
-    if(ArraySize(LeakETA11) < size) ArrayResize(LeakETA11, size);
-    if(ArraySize(LeakETA12) < size) ArrayResize(LeakETA12, size);
 
     if(ArraySize(WavePeriodBuffer1)  < size) ArrayResize(WavePeriodBuffer1,  size);
     if(ArraySize(WavePeriodBuffer2)  < size) ArrayResize(WavePeriodBuffer2,  size);
@@ -1987,7 +1948,6 @@ double StepKalman4D(double z)
 //| Popular buffers de leakage com ETAs das intrus?es (v7.53)      |
 //| Chamado para cada barra ap?s calcular ciclos principais        |
 //+------------------------------------------------------------------+
-void PopulateLeakBuffers(int bar_index)
 {
     double seconds_per_bar = (double)PeriodSeconds((ENUM_TIMEFRAMES)_Period);
     if(seconds_per_bar <= 0.0)
@@ -1999,21 +1959,14 @@ void PopulateLeakBuffers(int bar_index)
         double leak_eta_bars = 0.0;  // Valor padr?o (sem leak)
 
         // Verificar se este ciclo tem leak ativo
-        if(g_cycle_states[c].is_leak_active &&
-           g_cycle_states[c].leak_tracker_idx >= 0 &&
-           g_cycle_states[c].leak_tracker_idx < g_tracker_count)
         {
-            int leak_idx = g_cycle_states[c].leak_tracker_idx;
             // Calcular ETA do leak (mesmo metodo do principal, mas com periodo do leak)
             double leak_period = g_period_trackers[leak_idx].period;
             int leak_fft_idx = g_period_trackers[leak_idx].fft_index;
 
             double leak_phase_target_bars = MathMax(1.0, leak_period);
-            if(leak_phase_target_bars < (double)g_cycle_states[c].leak_bars_active)
-                leak_phase_target_bars = (double)g_cycle_states[c].leak_bars_active;
 
             double leak_phase_target_seconds = leak_phase_target_bars * seconds_per_bar;
-            double leak_elapsed_seconds = (double)g_cycle_states[c].leak_bars_active * seconds_per_bar;
 
             double leak_phase_progress = (leak_phase_target_seconds > 0.0)
                                          ? MathMin(1.0, leak_elapsed_seconds / leak_phase_target_seconds)
@@ -2029,7 +1982,6 @@ void PopulateLeakBuffers(int bar_index)
 
             leak_eta_bars = (seconds_per_bar > 0.0) ? leak_eta_seconds / seconds_per_bar : 0.0;
 
-            double main_eta = GetEtaBufferValue(c, bar_index);
             if(main_eta > 0.0)
                 leak_eta_bars = MathAbs(leak_eta_bars);
             else if(main_eta < 0.0)
@@ -2040,12 +1992,6 @@ void PopulateLeakBuffers(int bar_index)
 
         // Popular buffer correspondente ao ciclo
         switch(c) {
-            case 0:  LeakETA1[bar_index] = leak_eta_bars;   break; case 1:  LeakETA2[bar_index] = leak_eta_bars;   break;
-            case 2:  LeakETA3[bar_index] = leak_eta_bars;   break; case 3:  LeakETA4[bar_index] = leak_eta_bars;   break;
-            case 4:  LeakETA5[bar_index] = leak_eta_bars;   break; case 5:  LeakETA6[bar_index] = leak_eta_bars;   break;
-            case 6:  LeakETA7[bar_index] = leak_eta_bars;   break; case 7:  LeakETA8[bar_index] = leak_eta_bars;   break;
-            case 8:  LeakETA9[bar_index] = leak_eta_bars;   break; case 9:  LeakETA10[bar_index] = leak_eta_bars;  break;
-            case 10: LeakETA11[bar_index] = leak_eta_bars;  break; case 11: LeakETA12[bar_index] = leak_eta_bars;  break;
         }
     }
 }
@@ -2054,7 +2000,6 @@ void PopulateLeakBuffers(int bar_index)
 //| Popular LEAK ETA em buffers auxiliares (NOVO)                  |
 //| Independente das tentativas antigas de plotagem                |
 //+------------------------------------------------------------------+
-void PopulateLeakAuxBuffers_New(int bar_index)
 {
     for(int c = 0; c < 8; c++)
     {
@@ -2157,12 +2102,6 @@ void PopulateLeakAuxBuffers_New(int bar_index)
         {
             switch(c)
             {
-                case 0:  LeakETA1[bar_index] = leak_val;  break; case 1:  LeakETA2[bar_index]  = leak_val; break;
-                case 2:  LeakETA3[bar_index] = leak_val;  break; case 3:  LeakETA4[bar_index]  = leak_val; break;
-                case 4:  LeakETA5[bar_index] = leak_val;  break; case 5:  LeakETA6[bar_index]  = leak_val; break;
-                case 6:  LeakETA7[bar_index] = leak_val;  break; case 7:  LeakETA8[bar_index]  = leak_val; break;
-                case 8:  LeakETA9[bar_index] = leak_val;  break; case 9:  LeakETA10[bar_index] = leak_val; break;
-                case 10: LeakETA11[bar_index] = leak_val; break; case 11: LeakETA12[bar_index] = leak_val; break;
             }
         }
     }
@@ -2202,22 +2141,9 @@ void ExportToCSV(datetime time, int bar_index)
     {
         double state = GetCycleStateValue(c, bar_index);
         double period = g_dominant_periods[c];
-        double eta = GetEtaRawValue(c, bar_index);
         double leak = 0.0;
 
         switch(c) {
-            case 0:  if(bar_index < ArraySize(LeakETA1))  leak = LeakETA1[bar_index];   break;
-            case 1:  if(bar_index < ArraySize(LeakETA2))  leak = LeakETA2[bar_index];   break;
-            case 2:  if(bar_index < ArraySize(LeakETA3))  leak = LeakETA3[bar_index];   break;
-            case 3:  if(bar_index < ArraySize(LeakETA4))  leak = LeakETA4[bar_index];   break;
-            case 4:  if(bar_index < ArraySize(LeakETA5))  leak = LeakETA5[bar_index];   break;
-            case 5:  if(bar_index < ArraySize(LeakETA6))  leak = LeakETA6[bar_index];   break;
-            case 6:  if(bar_index < ArraySize(LeakETA7))  leak = LeakETA7[bar_index];   break;
-            case 7:  if(bar_index < ArraySize(LeakETA8))  leak = LeakETA8[bar_index];   break;
-            case 8:  if(bar_index < ArraySize(LeakETA9))  leak = LeakETA9[bar_index];   break;
-            case 9:  if(bar_index < ArraySize(LeakETA10)) leak = LeakETA10[bar_index]; break;
-            case 10: if(bar_index < ArraySize(LeakETA11)) leak = LeakETA11[bar_index]; break;
-            case 11: if(bar_index < ArraySize(LeakETA12)) leak = LeakETA12[bar_index]; break;
         }
 
         line += StringFormat(",%.0f,%.1f,%.1f,%.1f", state, period, eta, leak);
@@ -2262,9 +2188,7 @@ void ShowCycleListDebug()
         double num_cycles_window = freq_cyc_per_bar * (double)n;               // ≈ bin
 
         string leak = "-";
-        if(g_cycle_states[c].is_leak_active)
         {
-            int li = g_cycle_states[c].leak_tracker_idx;
             if(li>=0 && li<g_tracker_count)
                 leak = StringFormat("%.1f", g_period_trackers[li].period);
         }
@@ -2332,8 +2256,6 @@ int OnInit()
     PlotIndexSetString(73, PLOT_LABEL, "Kalman");
     PlotIndexSetDouble(73, PLOT_EMPTY_VALUE, EMPTY_VALUE);
 
-
-
     // Ocultar buffers auxiliares e manter apenas as waveforms visíveis
     for(int p=0; p<12; ++p)
       {
@@ -2355,7 +2277,6 @@ bool input_visibility[12] =
        InpShowWave5,  InpShowWave6,  InpShowWave7,  InpShowWave8,
        InpShowWave9,  InpShowWave10, InpShowWave11, InpShowWave12
       };
-
 
     // Cores padrão para as 12 waves
     color wave_colors[12] = {
@@ -2413,20 +2334,14 @@ bool input_visibility[12] =
         g_dominant_indices[c] = 0;
     }
 
-
     // Inicializar CycleStates (v7.53)
     for(int c = 0; c < 8; c++) {
         g_cycle_states[c].main_tracker_idx = -1;
-        g_cycle_states[c].leak_tracker_idx = -1;
         g_cycle_states[c].main_eta_continuous = 0.0;
-        g_cycle_states[c].leak_bars_active = 0;
-        g_cycle_states[c].is_leak_active = false;
-        g_cycle_states[c].leak_start_time = 0;
             g_phase_duration_estimate[c][0] = 0.0;
             g_phase_duration_estimate[c][1] = 0.0;
         g_last_eta_seconds[c] = 0.0;
     }
-
 
     return(INIT_SUCCEEDED);
 }
@@ -2439,7 +2354,6 @@ void CalculateCycle(int i, const double &price_array[], double &cycle_buffer[], 
     if(period <= 0 || i < 0) { cycle_buffer[i] = 0; return; }
     cycle_buffer[i] = price_array[i];
 }
-
 
 //+------------------------------------------------------------------+
 //| ASYMMETRIC ETA HELPER FUNCTIONS (v7.49)                         |
@@ -2468,7 +2382,6 @@ void StorePhaseHistory(int cycle_idx, bool is_bullish, int duration)
     int orientation = is_bullish ? 0 : 1;
     g_phase_duration_estimate[cycle_idx][orientation] = (double)duration;
 }
-
 
 //+------------------------------------------------------------------+
 //| Calculate median of historical phase durations                   |
@@ -2658,10 +2571,8 @@ int OnCalculate(const int rates_total,
     if (calculateCount == 1 || (TimeCurrent() - lastCalculateLog) > 300)
     {
 
-
         lastCalculateLog = TimeCurrent();
     }
-
 
     int start = MathMax(prev_calculated - 1, 0);
     int end_index = rates_total;
@@ -2708,13 +2619,6 @@ int OnCalculate(const int rates_total,
         ArrayInitialize(ColorBuffer3, 0.0);  ArrayInitialize(ColorBuffer4, 0.0);
         ArrayInitialize(ColorBuffer5, 0.0);  ArrayInitialize(ColorBuffer6, 0.0);
         ArrayInitialize(ColorBuffer7, 0.0);  ArrayInitialize(ColorBuffer8, 0.0);
-
-        ArrayInitialize(LeakETA1, 0.0);  ArrayInitialize(LeakETA2, 0.0);
-        ArrayInitialize(LeakETA3, 0.0);  ArrayInitialize(LeakETA4, 0.0);
-        ArrayInitialize(LeakETA5, 0.0);  ArrayInitialize(LeakETA6, 0.0);
-        ArrayInitialize(LeakETA7, 0.0);  ArrayInitialize(LeakETA8, 0.0);
-        ArrayInitialize(LeakETA9, 0.0);  ArrayInitialize(LeakETA10, 0.0);
-        ArrayInitialize(LeakETA11,0.0);  ArrayInitialize(LeakETA12,0.0);
 
         ArrayInitialize(SigBuffer1, 0.0);  ArrayInitialize(SigBuffer2, 0.0);
         ArrayInitialize(SigBuffer3, 0.0);  ArrayInitialize(SigBuffer4, 0.0);
@@ -2947,8 +2851,6 @@ switch(InpFeedData)
             spectrum[j] = (fft_real[j] * fft_real[j]) + (fft_imag[j] * fft_imag[j]);
         }
 
-
-
         //--- 4c. Encontrar os Top 8 ciclos reais (FFT amplitude) e plotar direto
         CycleInfo all_cycles[];
         int min_index = (int)ceil((double)InpFFTWindow / InpMaxPeriod);
@@ -3017,13 +2919,9 @@ switch(InpFeedData)
         }
         // Sem state/ETA/leak/signal nesta variante
 
-
   
 
-
     } // Fecha o loop for principal
-
-
 
     PrintFormat("[WaveSpecZZ] OnCalculate end: processed_bars=%d start=%d end_index=%d", processed_bars, start, end_index);
     return(end_index);
