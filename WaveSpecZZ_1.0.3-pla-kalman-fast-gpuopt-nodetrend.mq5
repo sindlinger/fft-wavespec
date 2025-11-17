@@ -3224,26 +3224,8 @@ else
             WaveKalman[i] = 0.0;
         }
 
-        //--- 2. APLICAï¿½ï¿½O DO FILTRO DE TENDï¿½NCIA (PRï¿½-FILTRAGEM)
-        double omega = 2.0 * M_PI / InpTrendPeriod;
-        double alpha = (1.0 - sin(omega)) / cos(omega);
-        double c = (1.0 - alpha) / 2.0;
-        trend_data[0] = c * (price_data[0] + price_data[0]);
-        trend_data[1] = c * (price_data[1] + price_data[0]) + alpha * trend_data[0];
-        for(int j = 2; j < InpFFTWindow; j++)
-        {
-            trend_data[j] = c * (price_data[j] + price_data[j-1]) + alpha * trend_data[j-1];
-        }
-        for(int j = 0; j < InpFFTWindow; j++)
-        {
-            detrended_data[j] = price_data[j] - trend_data[j];
-        }
-
-        if(!logged_trend_filter)
-        {
-            PrintFormat("[WaveSpecZZ] Step: trend filter applied (period=%d)", InpTrendPeriod);
-            logged_trend_filter = true;
-        }
+        //--- 2. Sem detrend nesta variante nodetrend
+        ArrayCopy(detrended_data, price_data, 0, 0, InpFFTWindow);
 
         //--- 3. Aplicar Windowing Function ANTES da FFT para reduzir spectral leakage
         ApplyWindow(detrended_data, InpFFTWindow, InpWindowType);
