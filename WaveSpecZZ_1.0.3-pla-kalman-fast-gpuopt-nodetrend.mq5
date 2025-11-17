@@ -3,8 +3,8 @@
 #property link      ""
 #property version   "1.005"
 #property indicator_separate_window
-#property indicator_buffers 22
-#property indicator_plots   9
+#property indicator_buffers 24
+#property indicator_plots   10
 
 // Buffers ZigZag mínimo (picos/fundos) para construir feed (calculations only)
 double ZigzagPeakBuffer[], ZigzagBottomBuffer[], ColorBuffer[], HighMapBuffer[], LowMapBuffer[];
@@ -39,6 +39,8 @@ input ZIG_MODE InpZigZagMode = ZIG_STEP;
 
 // Debug visual: exibe o feed corrente em um sublabel
 input bool InpShowFeedLabel = true;
+// Plotar o próprio feed_data em um overlay (escala correta)
+input bool InpShowFeedTrace  = true;
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -78,6 +80,17 @@ input double InpKalmanFollowStrength  = 1.0;
 #property indicator_color8  clrGray
 #property indicator_width8  1
 
+#property indicator_label9  "FeedLabel"
+#property indicator_type9   DRAW_LINE
+#property indicator_color9  clrWhite
+#property indicator_style9  STYLE_DOT
+#property indicator_width9  1
+
+#property indicator_label10  "FeedTrace"
+#property indicator_type10   DRAW_LINE
+#property indicator_color10  clrWhite
+#property indicator_style10  STYLE_SOLID
+#property indicator_width10  1
 // Label buffer to show feed mode visually (plot 9)
 #property indicator_type9   DRAW_LINE
 #property indicator_label9  "FeedLabel"
@@ -92,6 +105,7 @@ double WavePeriod1[],WavePeriod2[],WavePeriod3[],WavePeriod4[];
 double WavePeriod5[],WavePeriod6[],WavePeriod7[],WavePeriod8[];
 double WaveKalman[];
 double FeedLabel[];
+double FeedTrace[];
 
 double feed_data[], detrended_data[];
 double g_fft_interleaved[], fft_real[], fft_imag[], spectrum[];
@@ -118,22 +132,25 @@ int OnInit()
     // Feed label (plot 8)
     SetIndexBuffer(8, FeedLabel, INDICATOR_DATA);
 
-    // Period buffers (calc)
-    SetIndexBuffer(9, WavePeriod1, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(10, WavePeriod2, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(11, WavePeriod3, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(12, WavePeriod4, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(13, WavePeriod5, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(14, WavePeriod6, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(15, WavePeriod7, INDICATOR_CALCULATIONS);
-    SetIndexBuffer(16, WavePeriod8, INDICATOR_CALCULATIONS);
+    // Feed trace (plot 9)
+    SetIndexBuffer(9, FeedTrace, INDICATOR_DATA);
 
-    // ZigZag buffers (calc slots 17-21)
-    SetIndexBuffer(17, ZigzagPeakBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(18, ZigzagBottomBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(19, ColorBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(20, HighMapBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(21, LowMapBuffer,INDICATOR_CALCULATIONS);
+    // Period buffers (calc slots 10-17)
+    SetIndexBuffer(10, WavePeriod1, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(11, WavePeriod2, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(12, WavePeriod3, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(13, WavePeriod4, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(14, WavePeriod5, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(15, WavePeriod6, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(16, WavePeriod7, INDICATOR_CALCULATIONS);
+    SetIndexBuffer(17, WavePeriod8, INDICATOR_CALCULATIONS);
+
+    // ZigZag buffers (calc slots 18-22)
+    SetIndexBuffer(18, ZigzagPeakBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(19, ZigzagBottomBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(20, ColorBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(21, HighMapBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(22, LowMapBuffer,INDICATOR_CALCULATIONS);
 
     return(INIT_SUCCEEDED);
 }
@@ -281,23 +298,23 @@ int OnCalculate(const int rates_total,
         if(start_pos<0) continue;
 
         // feed selection
-        if(InpFeedData==FEED_CLOSE)
-        {
-            int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
-            if(shift<0) continue;
-            static double buf[]; ArrayResize(buf, InpFFTWindow); ArraySetAsSeries(buf,true);
-            if(CopyClose(_Symbol, InpFeedTimeframe, shift, InpFFTWindow, buf)!=InpFFTWindow) continue;
-            for(int j=0;j<InpFFTWindow;j++) feed_data[j]=buf[InpFFTWindow-1-j];
-        }
-        else if(InpFeedData==FEED_PLA)
-        {
-            if(!BuildPlaPriceSeries(start_pos, time, close)) continue;
-        }
-        else // ZigZag com modos STEP / INTERP / MID
-        {
-            if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagMode))
-                continue;
-        }
+    if(InpFeedData==FEED_CLOSE)
+    {
+        int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
+        if(shift<0) continue;
+        static double buf[]; ArrayResize(buf, InpFFTWindow); ArraySetAsSeries(buf,true);
+        if(CopyClose(_Symbol, InpFeedTimeframe, shift, InpFFTWindow, buf)!=InpFFTWindow) continue;
+        for(int j=0;j<InpFFTWindow;j++) feed_data[j]=buf[InpFFTWindow-1-j];
+    }
+    else if(InpFeedData==FEED_PLA)
+    {
+        if(!BuildPlaPriceSeries(start_pos, time, close)) continue;
+    }
+    else // ZigZag com modos STEP / INTERP / MID
+    {
+        if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagMode))
+            continue;
+    }
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
 
@@ -314,6 +331,11 @@ int OnCalculate(const int rates_total,
             }
             else if(InpFeedData==FEED_CLOSE) code = 5.0;
             FeedLabel[i] = code;
+        }
+
+        if(InpShowFeedTrace && ArraySize(FeedTrace)>=rates_total)
+        {
+            FeedTrace[i] = feed_data[InpFFTWindow-1];
         }
 
         // windowing: none (can add later)
