@@ -786,11 +786,11 @@ color default_palette[12];
 
 // (inputs de períodos legados removidos nesta variante nodetrend)
 
-//--- Inputs do C?lculo de Ciclo (FFT)
-input int  InpFFTWindow   = 16384;  // Janela da FFT 64-128-256-512-1024-2048-4096-8196-16384-32768-65536-131072-262144
-input int  InpMinPeriod   = 18;    // Per?odo m?nimo do ciclo a detectar
-input int  InpMaxPeriod   = 52;    // Per?odo m?ximo do ciclo a detectar
-input double InpBandwidth = 0.5;   // Mantido apenas para compatibilidade
+//--- Inputs do Cálculo de Ciclo (FFT)
+input int  InpFFTWindow   = 16384;  // Janela da FFT
+input int  InpMinPeriod   = 18;     // Período mínimo do ciclo a detectar
+input int  InpMaxPeriod   = 52;     // Período máximo do ciclo a detectar
+input double InpBandwidth = 0.5;    // Largura de banda do filtro de ciclo
 
 enum FFT_APPLIED_PRICE_SOURCE
   {
@@ -805,6 +805,7 @@ enum FFT_APPLIED_PRICE_SOURCE
    FFT_PRICE_PLA      = 1001
   };
 input FFT_APPLIED_PRICE_SOURCE InpAppliedPrice = FFT_PRICE_ZIGZAG;  // Pre?o a ser aplicado
+input ENUM_TIMEFRAMES InpFeedTimeframe = PERIOD_M1; // Timeframe do feed de preços
 input group "=== Segmenta??o Linear (PLA/PCA) ==="
 input bool   InpEnablePla             = false;   // Ativar segmenta??o PLA local
 input int    InpPlaMaxSegments        = 32;      // Limite de segmentos
