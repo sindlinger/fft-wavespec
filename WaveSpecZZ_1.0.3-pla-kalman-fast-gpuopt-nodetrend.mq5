@@ -6,6 +6,9 @@
 #property indicator_buffers 16
 #property indicator_plots   8
 
+// Buffers ZigZag mínimo (picos/fundos) para construir feed
+double ZigzagPeakBuffer[], ZigzagBottomBuffer[], ColorBuffer[], HighMapBuffer[], LowMapBuffer[];
+
 #import "mt-bridge.dll"
   int  gpu_init(int device_index, int stream_count);
   void gpu_shutdown(void);
@@ -19,7 +22,7 @@ input int  InpFFTWindow   = 16384;
 input int  InpMinPeriod   = 18;
 input int  InpMaxPeriod   = 200;
 
-enum FEED_DATA_MODE { FEED_PLA = 0, FEED_ZIGZAG_CONTINUOUS = 1, FEED_ZIGZAG_ALTERNATING = 2, FEED_CLOSE = 3 };
+enum FEED_DATA_MODE { FEED_PLA = 0, FEED_ZIGZAG = 1, FEED_CLOSE = 2 };
 input FEED_DATA_MODE InpFeedData = FEED_PLA;
 input ENUM_TIMEFRAMES InpFeedTimeframe = PERIOD_M1;
 
@@ -31,6 +34,8 @@ input group "ZigZag"
 input int InpZigZagDepth    = 12;
 input int InpZigZagDeviation= 5;
 input int InpZigZagBackstep = 3;
+enum ZIG_MODE { ZIG_STEP = 0, ZIG_INTERP = 1, ZIG_MID = 2 };
+input ZIG_MODE InpZigZagMode = ZIG_STEP;
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -80,9 +85,22 @@ double WaveKalman[];
 double feed_data[], detrended_data[];
 double g_fft_interleaved[], fft_real[], fft_imag[], spectrum[];
 bool g_gpu_session = false;
+int g_zig_handle = INVALID_HANDLE;
 
 int OnInit()
 {
+    // Handle ZigZag para feed (usar indicador padrão ZigZag)
+    g_zig_handle = iCustom(_Symbol, InpFeedTimeframe, "ZigZag", InpZigZagDepth, InpZigZagDeviation, InpZigZagBackstep);
+    if(InpFeedData == FEED_ZIGZAG && g_zig_handle == INVALID_HANDLE)
+        return(INIT_FAILED);
+
+    // Buffers ZigZag (não plotados neste indicador, só para feed)
+    SetIndexBuffer(0,ZigzagPeakBuffer,INDICATOR_DATA);
+    SetIndexBuffer(1,ZigzagBottomBuffer,INDICATOR_DATA);
+    SetIndexBuffer(2,ColorBuffer,INDICATOR_COLOR_INDEX);
+    SetIndexBuffer(3,HighMapBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(4,LowMapBuffer,INDICATOR_CALCULATIONS);
+
     SetIndexBuffer(0, WaveBuffer1, INDICATOR_DATA);
     SetIndexBuffer(1, WaveBuffer2, INDICATOR_DATA);
     SetIndexBuffer(2, WaveBuffer3, INDICATOR_DATA);
@@ -106,6 +124,9 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
+    if(g_zig_handle != INVALID_HANDLE)
+        IndicatorRelease(g_zig_handle);
+
     if(g_gpu_session)
     {
         gpu_shutdown();
@@ -164,19 +185,55 @@ bool BuildPlaPriceSeries(const int start_pos, const datetime &time[], const doub
     return true;
 }
 
-// ZigZag price series builder (continuous or alternating)
+// ZigZag price series builder (3 modos: STEP, INTERP, MID)
 bool BuildZigZagPriceSeries(const int start_pos,
                             const double &high[],
                             const double &low[],
                             const datetime &time[],
-                            bool alternating)
+                            ZIG_MODE mode)
 {
     if(start_pos < 0) return false;
     int len = InpFFTWindow;
+    // Copia buffers do ZigZag padrão: 0 = main (picos/fundos), 1 = high, 2 = low
+    static double zz_main[], zz_high[], zz_low[];
+    ArrayResize(zz_main, len); ArrayResize(zz_high, len); ArrayResize(zz_low, len);
+    int copied_main = CopyBuffer(g_zig_handle, 0, start_pos, len, zz_main);
+    int copied_high = CopyBuffer(g_zig_handle, 1, start_pos, len, zz_high);
+    int copied_low  = CopyBuffer(g_zig_handle, 2, start_pos, len, zz_low);
+    if(copied_main != len || copied_high != len || copied_low != len)
+        return false;
+
     for(int j=0; j<len; ++j)
     {
-        int idx = start_pos + j;
-        double v = (alternating ? ((j%2==0)? high[idx]: low[idx]) : (high[idx]+low[idx])*0.5);
+        double v=0.0;
+        switch(mode)
+        {
+            case ZIG_STEP:
+                // mantém o valor do último topo/fundo até o próximo
+                v = (zz_main[j] != 0.0) ? zz_main[j] : (j>0 ? feed_data[j-1] : (high[start_pos]+low[start_pos])*0.5);
+                break;
+            case ZIG_INTERP:
+                // Interpola entre o último extremo conhecido e o próximo extremo adiante
+                {
+                    // procurar próximo extremo
+                    int next = -1;
+                    for(int k=j+1;k<len;k++){ if(zz_main[k]!=0.0){ next=k; break; } }
+                    double cur_ext = (zz_main[j]!=0.0)? zz_main[j] : (j>0? feed_data[j-1] : (high[start_pos]+low[start_pos])*0.5);
+                    if(next==-1)
+                        v = cur_ext;
+                    else
+                    {
+                        double next_ext = zz_main[next];
+                        double t = (double)(j - (j)) / (double)(next - j + 1); // 0 na posição atual
+                        v = cur_ext + (next_ext - cur_ext) * t;
+                    }
+                }
+                break;
+            case ZIG_MID:
+                // média dos extremos da barra mapeados pelo ZigZag
+                v = (zz_high[j]+zz_low[j])*0.5;
+                break;
+        }
         feed_data[j] = v;
     }
     return true;
@@ -219,10 +276,9 @@ int OnCalculate(const int rates_total,
         {
             if(!BuildPlaPriceSeries(start_pos, time, close)) continue;
         }
-        else // ZigZag continuous/alternating
+        else // ZigZag com modos STEP / INTERP / MID
         {
-            bool alternating = (InpFeedData == FEED_ZIGZAG_ALTERNATING);
-            if(!BuildZigZagPriceSeries(start_pos, high, low, time, alternating))
+            if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagMode))
                 continue;
         }
 
