@@ -41,6 +41,8 @@ input ZIG_MODE InpZigZagMode = ZIG_STEP;
 input bool InpShowFeedLabel = true;
 // Plotar o próprio feed_data em um overlay (escala correta)
 input bool InpShowFeedTrace  = true;
+// Mostrar só o feed (esconde as waves)
+input bool InpFeedOnly = false;
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -151,6 +153,14 @@ int OnInit()
     SetIndexBuffer(20, ColorBuffer,INDICATOR_CALCULATIONS);
     SetIndexBuffer(21, HighMapBuffer,INDICATOR_CALCULATIONS);
     SetIndexBuffer(22, LowMapBuffer,INDICATOR_CALCULATIONS);
+
+    // Opcional: mostrar só feed
+    if(InpFeedOnly)
+    {
+        for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_NONE);
+        if(!InpShowFeedLabel) PlotIndexSetInteger(8, PLOT_DRAW_TYPE, DRAW_NONE);
+        if(!InpShowFeedTrace) PlotIndexSetInteger(9, PLOT_DRAW_TYPE, DRAW_NONE);
+    }
 
     return(INIT_SUCCEEDED);
 }
