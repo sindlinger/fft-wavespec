@@ -45,6 +45,8 @@ input group "GPU Cycle Extractor"
 input int    InpGpuTopK        = 2;        // ciclos extraídos da GPU
 input int    InpGpuMethod      = 1;        // 0=FFT ridge, 1=MUSIC/ESPRIT, -1=auto
 input int    InpGpuArOrder     = 8;        // ordem AR para MUSIC/ESPRIT
+input double InpGpuMinPeriod   = 9;        // períodos em barras
+input double InpGpuMaxPeriod   = 200;      // períodos em barras
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -100,6 +102,8 @@ double FeedTrace[];
 
 double feed_data[], detrended_data[];
 double g_fft_interleaved[], fft_real[], fft_imag[], spectrum[];
+// buffers para chamada extract_cycles GPU
+double g_cycles_raw[]; // interleaved: amplitude, freq, period, phase, eta_bars, eta_seconds, energy_ratio, coherence, snr_db, residual_power, eigen_ratio, score, kalman_pred, eta_confidence, method
 bool g_gpu_session = false;
 int g_zig_handle = INVALID_HANDLE;
 
@@ -534,51 +538,33 @@ int OnCalculate(const int rates_total,
 
         if(!s_fft.Run(detrended_data, InpFFTWindow)) continue;
 
-        int bins=InpFFTWindow/2;
-        for(int k=0;k<bins;k++)
-        {
-            int base=2*k;
-            fft_real[k]=g_fft_interleaved[base];
-            fft_imag[k]=(base+1<InpFFTWindow)?g_fft_interleaved[base+1]:0.0;
-        }
+        // GPU: extrai ciclos já classificados (FFT ou MUSIC no core)
+        const int stride = 15; // amplitude,freq,period,phase,eta_bars,eta_seconds,energy,coherence,snr,residual,eigen,score,kalman,eta_conf,method
+        int needed = InpGpuTopK * stride;
+        if(ArraySize(g_cycles_raw) < needed) ArrayResize(g_cycles_raw, needed);
 
-        int bins2 = InpFFTWindow/2;
-        for(int k=0;k<bins2;k++)
-            spectrum[k]=fft_real[k]*fft_real[k]+fft_imag[k]*fft_imag[k];
+        int cycles_out = 0;
+        int st = gpu_extract_cycles(detrended_data,
+                                    InpFFTWindow,
+                                    InpGpuTopK,
+                                    InpGpuMinPeriod,
+                                    InpGpuMaxPeriod,
+                                    1.0,           // sample_rate_seconds (1 barra)
+                                    InpGpuMethod,
+                                    InpGpuArOrder,
+                                    g_cycles_raw,
+                                    stride,
+                                    InpGpuTopK,
+                                    &cycles_out);
+        if(st!=0 || cycles_out<=0)
+            continue;
 
-        // top-8 bins by power within period range
-        double top_pow[8]; int top_bin[8];
-        for(int s=0;s<8;s++){top_pow[s]=-1.0; top_bin[s]=-1;}
-        int min_index = (int)MathCeil((double)InpFFTWindow / (double)InpMaxPeriod);
-        int max_index = (int)MathFloor((double)InpFFTWindow / (double)InpMinPeriod);
-        if(max_index>=bins) max_index=bins-1;
-        for(int b=min_index;b<=max_index;b++)
+        // Preenche buffers waves com os ciclos retornados
+        for(int s=0; s<MathMin(cycles_out, 8); s++)
         {
-            double p=spectrum[b];
-            // insert into top list
-            for(int s=0;s<8;s++)
-            {
-                if(p>top_pow[s])
-                {
-                    for(int t=7;t>s;t--){top_pow[t]=top_pow[t-1]; top_bin[t]=top_bin[t-1];}
-                    top_pow[s]=p; top_bin[s]=b; break;
-                }
-            }
-        }
-
-        // fill buffers slot a slot (MQL não suporta ponteiros de array)
-        for(int s=0;s<8;s++)
-        {
-            double amp=0.0, period=0.0;
-            if(top_bin[s]>0)
-            {
-                period = (double)InpFFTWindow / (double)top_bin[s];
-                double mag = MathSqrt(top_pow[s]);
-                // Reconstrução aproximada no último ponto da janela usando fase da FFT
-                double phase = MathArctan2(fft_imag[top_bin[s]], fft_real[top_bin[s]]);
-                double n = (double)(InpFFTWindow-1);
-                amp = (mag / (double)InpFFTWindow) * MathCos(phase + 2.0*M_PI*(double)top_bin[s]*n/(double)InpFFTWindow);
-            }
+            int base = s*stride;
+            double amp    = g_cycles_raw[base+0];
+            double period = g_cycles_raw[base+2];
             switch(s)
             {
                 case 0: WaveBuffer1[i]=amp; WavePeriod1[i]=period; break;
@@ -590,18 +576,6 @@ int OnCalculate(const int rates_total,
                 case 6: WaveBuffer7[i]=amp; WavePeriod7[i]=period; break;
                 case 7: WaveBuffer8[i]=amp; WavePeriod8[i]=period; break;
             }
-        }
-
-        // optional Kalman smoothing on the feed_data last point
-        if(InpEnableKalman)
-        {
-            if(ArraySize(WaveKalman)<rates_total) ArrayResize(WaveKalman,rates_total);
-            double meas = feed_data[InpFFTWindow-1];
-            WaveKalman[i]=meas; // placeholder (Kalman removed)
-        }
-        else if(ArraySize(WaveKalman)>=rates_total)
-        {
-            WaveKalman[i]=0.0;
         }
 
     }
