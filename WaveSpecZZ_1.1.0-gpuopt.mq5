@@ -320,17 +320,19 @@ int OnInit()
     }
     else // VIEW_WAVES
     {
-        // Feed totalmente oculto
         PlotIndexSetInteger(8, PLOT_DRAW_TYPE, DRAW_NONE);
         for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_LINE);
     }
 
-    // Remover rótulos/valores no Data Window e na barra de título da subjanela
-    for(int p=0; p<indicator_plots; p++)
+    // Labels e Data Window habilitados
+    const string wave_labels[8] = {"Wave1","Wave2","Wave3","Wave4","Wave5","Wave6","Wave7","Wave8"};
+    for(int p=0; p<8; p++)
     {
-        PlotIndexSetString(p, PLOT_LABEL, "");
-        PlotIndexSetInteger(p, PLOT_SHOW_DATA, false);
+        PlotIndexSetString(p, PLOT_LABEL, wave_labels[p]);
+        PlotIndexSetInteger(p, PLOT_SHOW_DATA, true);
     }
+    PlotIndexSetString(8, PLOT_LABEL, "Feed");
+    PlotIndexSetInteger(8, PLOT_SHOW_DATA, true);
     IndicatorSetString(INDICATOR_SHORTNAME, "WaveSpecZZ 1.1.0");
 
     return(INIT_SUCCEEDED);
