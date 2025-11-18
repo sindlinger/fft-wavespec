@@ -54,6 +54,7 @@ input int    InpGpuMethod      = 1;        // 0=FFT ridge, 1=MUSIC/ESPRIT, -1=au
 input int    InpGpuArOrder     = 10;       // ordem AR para MUSIC/ESPRIT (ajustada p/ 2 ciclos “perfeitos”)
 input double InpGpuMinPeriod   = 9;        // períodos em barras
 input double InpGpuMaxPeriod   = 200;      // períodos em barras
+input bool   InpEtaCountdown   = true;     // mostra contagem regressiva (barras) até próximo pico/fundo nos buffers de período
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -106,6 +107,9 @@ double WavePeriod1[],WavePeriod2[],WavePeriod3[],WavePeriod4[];
 double WavePeriod5[],WavePeriod6[],WavePeriod7[],WavePeriod8[];
 double WaveKalman[];
 double FeedTrace[];
+
+// ETA countdown por slot (barras até próximo pico/fundo)
+double EtaCountdown[8];
 
 double feed_data[], detrended_data[];
 double g_fft_interleaved[], fft_real[], fft_imag[], spectrum[];
@@ -352,6 +356,8 @@ void OnDeinit(const int reason)
         gpu_shutdown();
         g_gpu_session=false;
     }
+
+    ArrayInitialize(EtaCountdown, 0.0);
 }
 
 bool EnsureGpu(int length)
@@ -520,6 +526,7 @@ int OnCalculate(const int rates_total,
     ArrayResize(spectrum, InpFFTWindow/2);
     ArrayResize(WaveKalman, rates_total);
     ArrayResize(FeedTrace, rates_total);
+    ArrayResize(EtaCountdown, 8);
 
     int start = MathMax(prev_calculated-1, InpFFTWindow-1);
     for(int i=start;i<rates_total;i++)
@@ -547,6 +554,13 @@ int OnCalculate(const int rates_total,
         // Exibição exclusiva: se for só feed, publicar feed e pular cálculo de ondas
         if(InpViewMode == VIEW_FEED){ s_view.ShowFeedOnly(i); continue; }
         s_view.HideFeed(i);
+
+        // Decrementa ETA (contagem regressiva) por slot, se habilitado
+        if(InpEtaCountdown)
+        {
+            for(int s=0; s<8; s++)
+                if(EtaCountdown[s] > 0.0) EtaCountdown[s] -= 1.0;
+        }
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
 
@@ -583,6 +597,7 @@ int OnCalculate(const int rates_total,
         WaveBuffer5[i]=WaveBuffer6[i]=WaveBuffer7[i]=WaveBuffer8[i]=EMPTY_VALUE;
         WavePeriod1[i]=WavePeriod2[i]=WavePeriod3[i]=WavePeriod4[i]=EMPTY_VALUE;
         WavePeriod5[i]=WavePeriod6[i]=WavePeriod7[i]=WavePeriod8[i]=EMPTY_VALUE;
+        ArrayInitialize(EtaCountdown, 0.0);
 
         // Preenche buffers waves com os ciclos retornados
         for(int s=0; s<MathMin(cycles_out, 8); s++)
@@ -592,19 +607,22 @@ int OnCalculate(const int rates_total,
             double freq   = g_cycles_raw[base+1];
             double period = g_cycles_raw[base+2];
             double phase  = g_cycles_raw[base+3];
+            double eta    = g_cycles_raw[base+4];
             double wave_value = amp;
             if(InpDrawMode == DRAW_SINE_RECON)
                 wave_value = amp * MathSin(phase);
+            if(InpEtaCountdown && eta > 0)
+               EtaCountdown[s] = eta;
             switch(s)
             {
-                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=period; break;
-                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=period; break;
-                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=period; break;
-                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=period; break;
-                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=period; break;
-                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=period; break;
-                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=period; break;
-                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=period; break;
+                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); break;
+                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); break;
+                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); break;
+                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); break;
+                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); break;
+                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); break;
+                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); break;
+                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); break;
             }
         }
 
