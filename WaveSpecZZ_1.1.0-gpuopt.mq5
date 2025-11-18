@@ -258,43 +258,6 @@ public:
     void HideFeed(int i){ FeedTrace[i]=EMPTY_VALUE; }
 };
 
-// Ajusta escala visual para evitar "achatamento" no topo/fundo
-void UpdateScale(bool feed_mode, int i)
-{
-    int lookback = MathMin(InpFFTWindow, i+1);
-    double vmin=DBL_MAX, vmax=-DBL_MAX;
-    if(feed_mode)
-    {
-        for(int k=i; k>=0 && k>i-lookback; --k)
-        {
-            double v = FeedTrace[k];
-            if(v==EMPTY_VALUE) continue;
-            if(v<vmin) vmin=v;
-            if(v>vmax) vmax=v;
-        }
-    }
-    else
-    {
-        for(int k=i; k>=0 && k>i-lookback; --k)
-        {
-            double v = WaveBuffer1[k];
-            if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-            v = WaveBuffer2[k]; if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-            v = WaveBuffer3[k]; if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-            v = WaveBuffer4[k]; if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-            v = WaveBuffer5[k]; if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-            v = WaveBuffer6[k]; if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-            v = WaveBuffer7[k]; if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-            v = WaveBuffer8[k]; if(v!=EMPTY_VALUE){ if(v<vmin) vmin=v; if(v>vmax) vmax=v; }
-        }
-    }
-    if(vmin==DBL_MAX || vmax==-DBL_MAX) return;
-    double range = vmax - vmin;
-    double pad = (range>0 ? range*0.10 : 1e-6);
-    IndicatorSetDouble(INDICATOR_MINIMUM, vmin - pad);
-    IndicatorSetDouble(INDICATOR_MAXIMUM, vmax + pad);
-}
-
 static FeedBuilder   s_feed;
 static FftProcessor  s_fft;
 static ViewRouter    s_view;
@@ -554,7 +517,7 @@ int OnCalculate(const int rates_total,
             continue;
 
         // Exibição exclusiva: se for só feed, publicar feed e pular cálculo de ondas
-        if(InpViewMode == VIEW_FEED){ s_view.ShowFeedOnly(i); UpdateScale(true,i); continue; }
+        if(InpViewMode == VIEW_FEED){ s_view.ShowFeedOnly(i); continue; }
         s_view.HideFeed(i);
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
@@ -636,8 +599,6 @@ int OnCalculate(const int rates_total,
             WaveKalman[i]=0.0;
         }
 
-        // Ajustar escala visual após preencher ondas
-        UpdateScale(false, i);
     }
 
     return(rates_total);
