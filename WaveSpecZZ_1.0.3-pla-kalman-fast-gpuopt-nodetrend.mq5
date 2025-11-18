@@ -190,29 +190,47 @@ bool BuildPlaPriceSeries(const int start_pos, const datetime &time[], const doub
     return true;
 }
 
-// ZigZag price series builder (3 modos: STEP, INTERP, MID)
-bool BuildZigZagPriceSeries(const int start_pos,
+// ZigZag price series builder (3 modos: STEP, INTERP, MID) no feed timeframe
+bool BuildZigZagPriceSeries(const int start_pos_chart,
                             const double &high[],
                             const double &low[],
                             const datetime &time[],
                             ZIG_MODE mode)
 {
-    if(start_pos < 0) return false;
+    if(start_pos_chart < 0) return false;
+    // Converter índice do gráfico para o índice no timeframe de feed
+    int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos_chart]);
+    if(shift < 0) return false; // sem histórico correspondente
+
     int len = InpFFTWindow;
     // Copia buffers do ZigZag padrão: 0 = main (picos/fundos), 1 = high, 2 = low
     static double zz_main[], zz_high[], zz_low[];
+    ArraySetAsSeries(zz_main, true);
+    ArraySetAsSeries(zz_high, true);
+    ArraySetAsSeries(zz_low,  true);
     ArrayResize(zz_main, len); ArrayResize(zz_high, len); ArrayResize(zz_low, len);
-    int copied_main = CopyBuffer(g_zig_handle, 0, start_pos, len, zz_main);
-    int copied_high = CopyBuffer(g_zig_handle, 1, start_pos, len, zz_high);
-    int copied_low  = CopyBuffer(g_zig_handle, 2, start_pos, len, zz_low);
+    int copied_main = CopyBuffer(g_zig_handle, 0, shift, len, zz_main);
+    int copied_high = CopyBuffer(g_zig_handle, 1, shift, len, zz_high);
+    int copied_low  = CopyBuffer(g_zig_handle, 2, shift, len, zz_low);
     if(copied_main != len || copied_high != len || copied_low != len)
         return false;
+
+    // Reverter para ordem cronológica (mais antigo -> mais recente)
+    static double main_ch[], high_ch[], low_ch[];
+    ArrayResize(main_ch, len); ArrayResize(high_ch, len); ArrayResize(low_ch, len);
+    for(int j=0;j<len;j++)
+    {
+        int src = len-1-j;
+        main_ch[j] = zz_main[src];
+        high_ch[j] = zz_high[src];
+        low_ch[j]  = zz_low[src];
+    }
 
     int last_ext = -1;
     double last_val = 0.0;
     // inicializar last_ext com primeiro extremo à frente, se existir
-    for(int k=0;k<len;k++){ if(zz_main[k]!=0.0){ last_ext=k; last_val=zz_main[k]; break; } }
-    if(last_ext==-1) last_val = (high[start_pos]+low[start_pos])*0.5;
+    for(int k=0;k<len;k++){ if(main_ch[k]!=0.0){ last_ext=k; last_val=main_ch[k]; break; } }
+    if(last_ext==-1) last_val = (high[start_pos_chart]+low[start_pos_chart])*0.5;
 
     for(int j=0; j<len; ++j)
     {
@@ -220,24 +238,24 @@ bool BuildZigZagPriceSeries(const int start_pos,
         switch(mode)
         {
             case ZIG_STEP:
-                if(zz_main[j]!=0.0){ last_ext=j; last_val=zz_main[j]; }
+                if(main_ch[j]!=0.0){ last_ext=j; last_val=main_ch[j]; }
                 v = last_val;
                 break;
             case ZIG_INTERP:
                 {
-                    if(zz_main[j]!=0.0){ last_ext=j; last_val=zz_main[j]; }
+                    if(main_ch[j]!=0.0){ last_ext=j; last_val=main_ch[j]; }
                     int next=-1;
-                    for(int k=j+1;k<len;k++){ if(zz_main[k]!=0.0){ next=k; break; } }
+                    for(int k=j+1;k<len;k++){ if(main_ch[k]!=0.0){ next=k; break; } }
                     if(next==-1){ v = last_val; }
                     else{
-                        double next_val = zz_main[next];
+                        double next_val = main_ch[next];
                         double t = (double)(j - last_ext) / (double)(next - last_ext);
                         v = last_val + (next_val - last_val)*t;
                     }
                 }
                 break;
             case ZIG_MID:
-                v = (zz_high[j]+zz_low[j])*0.5;
+                v = (high_ch[j]+low_ch[j])*0.5;
                 break;
         }
         feed_data[j] = v;

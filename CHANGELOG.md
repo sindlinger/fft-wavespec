@@ -6,6 +6,7 @@
   - Removido o rótulo/feed label duplicado e qualquer traço do feed quando ondas estão visíveis.
   - Eliminado código de fallback CPU FFT; processamento permanece somente GPU (barra é ignorada se GPU indisponível).
   - `FeedTrace` redimensionado e preenchido apenas no modo feed; propriedades do plot ajustadas (único plot 9).
+  - Feed ZigZag agora usa o timeframe selecionado (`InpFeedTimeframe`), convertendo a barra do gráfico para `shift` correto e invertendo a ordem para cronologia; evita paradas quando o gráfico está em outro timeframe (ex.: M15 com feed M1).
 
 ## 2025-11-17
 - `WaveSpecZZ_1.0.3-pla-kalman-fast-gpuopt-nodetrend.mq5`
