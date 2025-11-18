@@ -239,15 +239,39 @@ bool BuildZigZagPriceSeries(const int shift_end_feed,
                 break;
             case ZIG_INTERP:
                 {
-                    if(main_ch[j]!=0.0){ last_ext=j; last_val=main_ch[j]; }
-                    int next=-1;
-                    for(int k=j+1;k<len;k++){ if(main_ch[k]!=0.0){ next=k; break; } }
-                    if(next==-1){ v = last_val; }
-                    else if(next<=last_ext+0){ v = last_val; } // evita divisão por zero
-                    else{
-                        double next_val = main_ch[next];
-                        double t = (double)(j - last_ext) / (double)(next - last_ext);
-                        v = last_val + (next_val - last_val)*t;
+                    // Interpola apenas entre extremos já confirmados (prev->curr), mantendo valor após o último
+                    static int ext_pos[]; static double ext_val[];
+                    ArrayResize(ext_pos, 0); ArrayResize(ext_val, 0);
+                    for(int k=0;k<len;k++)
+                    {
+                        if(main_ch[k]!=0.0)
+                        {
+                            int sz = ArraySize(ext_pos);
+                            ArrayResize(ext_pos, sz+1);
+                            ArrayResize(ext_val, sz+1);
+                            ext_pos[sz]=k;
+                            ext_val[sz]=main_ch[k];
+                        }
+                    }
+                    int n = ArraySize(ext_pos);
+                    if(n==0){ v = last_val; }
+                    else if(j <= ext_pos[0]) { v = ext_val[0]; }
+                    else if(j >= ext_pos[n-1]) { v = ext_val[n-1]; }
+                    else
+                    {
+                        // encontra o segmento ext_pos[k] <= j < ext_pos[k+1]
+                        int kseg = -1;
+                        for(int kidx=0;kidx<n-1;kidx++)
+                        {
+                            if(j >= ext_pos[kidx] && j < ext_pos[kidx+1]) { kseg = kidx; break; }
+                        }
+                        if(kseg==-1){ v = ext_val[n-1]; }
+                        else {
+                            int a = ext_pos[kseg], b = ext_pos[kseg+1];
+                            double va = ext_val[kseg], vb = ext_val[kseg+1];
+                            double t = (double)(j - a) / (double)(b - a);
+                            v = va + (vb - va)*t;
+                        }
                     }
                 }
                 break;
