@@ -3,8 +3,8 @@
 #property link      ""
 #property version   "1.100"
 #property indicator_separate_window
-#property indicator_buffers 22
-#property indicator_plots   9
+#property indicator_buffers 23  // 8 waves + feed + 8 forecasts + 5 zigzag calc + periods in calc slots
+#property indicator_plots   17  // 8 waves + feed + 8 forecast markers
 
 // Buffers ZigZag mínimo (picos/fundos) para construir feed (calculations only)
 double ZigzagPeakBuffer[], ZigzagBottomBuffer[], ColorBuffer[], HighMapBuffer[], LowMapBuffer[];
@@ -55,6 +55,7 @@ input int    InpGpuArOrder     = 10;       // ordem AR para MUSIC/ESPRIT (ajusta
 input double InpGpuMinPeriod   = 9;        // períodos em barras
 input double InpGpuMaxPeriod   = 200;      // períodos em barras
 input bool   InpEtaCountdown   = true;     // mostra contagem regressiva (barras) até próximo pico/fundo nos buffers de período
+input bool   InpForecastMarks  = true;     // plota marcador na barra prevista do próximo pico/fundo (ETA) por wave
 
 input group "Kalman"
 input bool   InpEnableKalman    = false;
@@ -100,6 +101,40 @@ input double InpKalmanFollowStrength  = 1.0;
 #property indicator_style9  STYLE_DOT
 #property indicator_width9  1
 
+// Forecast markers (plots 10-17) - usam cores das waves correspondentes
+#property indicator_label10 "FMark1"
+#property indicator_type10  DRAW_ARROW
+#property indicator_color10 clrRed
+#property indicator_width10 1
+#property indicator_label11 "FMark2"
+#property indicator_type11  DRAW_ARROW
+#property indicator_color11 clrOrangeRed
+#property indicator_width11 1
+#property indicator_label12 "FMark3"
+#property indicator_type12  DRAW_ARROW
+#property indicator_color12 clrOrange
+#property indicator_width12 1
+#property indicator_label13 "FMark4"
+#property indicator_type13  DRAW_ARROW
+#property indicator_color13 clrGold
+#property indicator_width13 1
+#property indicator_label14 "FMark5"
+#property indicator_type14  DRAW_ARROW
+#property indicator_color14 clrYellow
+#property indicator_width14 1
+#property indicator_label15 "FMark6"
+#property indicator_type15  DRAW_ARROW
+#property indicator_color15 clrChartreuse
+#property indicator_width15 1
+#property indicator_label16 "FMark7"
+#property indicator_type16  DRAW_ARROW
+#property indicator_color16 clrLime
+#property indicator_width16 1
+#property indicator_label17 "FMark8"
+#property indicator_type17  DRAW_ARROW
+#property indicator_color17 clrSpringGreen
+#property indicator_width17 1
+
 
 double WaveBuffer1[],WaveBuffer2[],WaveBuffer3[],WaveBuffer4[];
 double WaveBuffer5[],WaveBuffer6[],WaveBuffer7[],WaveBuffer8[];
@@ -110,6 +145,9 @@ double FeedTrace[];
 
 // ETA countdown por slot (barras até próximo pico/fundo)
 double EtaCountdown[8];
+// Marcadores de previsão (um buffer por wave)
+double ForecastMark1[],ForecastMark2[],ForecastMark3[],ForecastMark4[];
+double ForecastMark5[],ForecastMark6[],ForecastMark7[],ForecastMark8[];
 
 double feed_data[], detrended_data[];
 double g_fft_interleaved[], fft_real[], fft_imag[], spectrum[];
@@ -313,12 +351,22 @@ int OnInit()
     SetIndexBuffer(15, WavePeriod7, INDICATOR_CALCULATIONS);
     SetIndexBuffer(16, WavePeriod8, INDICATOR_CALCULATIONS);
 
-    // ZigZag buffers (calc slots 17-21)
-    SetIndexBuffer(17, ZigzagPeakBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(18, ZigzagBottomBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(19, ColorBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(20, HighMapBuffer,INDICATOR_CALCULATIONS);
-    SetIndexBuffer(21, LowMapBuffer,INDICATOR_CALCULATIONS);
+    // Forecast markers (plots 10-17) - arrows
+    SetIndexBuffer(10, ForecastMark1, INDICATOR_DATA);
+    SetIndexBuffer(11, ForecastMark2, INDICATOR_DATA);
+    SetIndexBuffer(12, ForecastMark3, INDICATOR_DATA);
+    SetIndexBuffer(13, ForecastMark4, INDICATOR_DATA);
+    SetIndexBuffer(14, ForecastMark5, INDICATOR_DATA);
+    SetIndexBuffer(15, ForecastMark6, INDICATOR_DATA);
+    SetIndexBuffer(16, ForecastMark7, INDICATOR_DATA);
+    SetIndexBuffer(17, ForecastMark8, INDICATOR_DATA);
+
+    // ZigZag buffers (calc slots 18-22)
+    SetIndexBuffer(18, ZigzagPeakBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(19, ZigzagBottomBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(20, ColorBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(21, HighMapBuffer,INDICATOR_CALCULATIONS);
+    SetIndexBuffer(22, LowMapBuffer,INDICATOR_CALCULATIONS);
 
     // Exibição exclusiva: waves OU feed
     if(InpViewMode == VIEW_FEED)
@@ -341,6 +389,13 @@ int OnInit()
     }
     PlotIndexSetString(8, PLOT_LABEL, "Feed");
     PlotIndexSetInteger(8, PLOT_SHOW_DATA, true);
+    // Forecast markers também visíveis na Data Window (ETA em barras)
+    const string fmark_labels[8] = {"FMark1","FMark2","FMark3","FMark4","FMark5","FMark6","FMark7","FMark8"};
+    for(int p=0; p<8; p++)
+    {
+        PlotIndexSetString(10+p, PLOT_LABEL, fmark_labels[p]);
+        PlotIndexSetInteger(10+p, PLOT_SHOW_DATA, true);
+    }
     IndicatorSetString(INDICATOR_SHORTNAME, "WaveSpecZZ 1.1.0");
 
     return(INIT_SUCCEEDED);
@@ -615,14 +670,14 @@ int OnCalculate(const int rates_total,
                EtaCountdown[s] = eta;
             switch(s)
             {
-                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); break;
-                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); break;
-                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); break;
-                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); break;
-                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); break;
-                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); break;
-                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); break;
-                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); break;
+                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); ForecastMark1[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && i+(int)MathRound(eta)<rates_total) ForecastMark1[i+(int)MathRound(eta)]=wave_value; break;
+                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); ForecastMark2[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark2[i+(int)MathRound(eta)]=wave_value; break;
+                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); ForecastMark3[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark3[i+(int)MathRound(eta)]=wave_value; break;
+                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); ForecastMark4[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark4[i+(int)MathRound(eta)]=wave_value; break;
+                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); ForecastMark5[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark5[i+(int)MathRound(eta)]=wave_value; break;
+                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); ForecastMark6[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark6[i+(int)MathRound(eta)]=wave_value; break;
+                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); ForecastMark7[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark7[i+(int)MathRound(eta)]=wave_value; break;
+                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); ForecastMark8[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark8[i+(int)MathRound(eta)]=wave_value; break;
             }
         }
 
