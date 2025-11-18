@@ -109,6 +109,7 @@ double g_fft_interleaved[], fft_real[], fft_imag[], spectrum[];
 double g_cycles_raw[]; // interleaved: amplitude, freq, period, phase, eta_bars, eta_seconds, energy_ratio, coherence, snr_db, residual_power, eigen_ratio, score, kalman_pred, eta_confidence, method
 bool g_gpu_session = false;
 int g_zig_handle = INVALID_HANDLE;
+const int kFeedLogEvery = 128; // log feed status a cada 128 barras
 
 //---------------- OO Helper structs ----------------
 class ZigZagFeed
@@ -527,6 +528,15 @@ int OnCalculate(const int rates_total,
         // feed selection
         if(!s_feed.Build(shift_end_feed, start_pos, time, close, high, low))
             continue;
+
+        // Log periódico do feed/timeframe
+        if((i % kFeedLogEvery)==0 || i==rates_total-1)
+        {
+            string feed_mode = (InpFeedData==FEED_PLA ? "PLA" : (InpFeedData==FEED_ZIGZAG ? "ZIGZAG" : "CLOSE"));
+            string view_mode = (InpViewMode==VIEW_FEED ? "FEED" : "WAVES");
+            PrintFormat("[WaveSpecZZ][FEED] i=%d tf=%s shift=%d mode=%s view=%s window=%d",
+                        i, EnumToString(InpFeedTimeframe), shift_end_feed, feed_mode, view_mode, InpFFTWindow);
+        }
 
         // Exibição exclusiva: se for só feed, publicar feed e pular cálculo de ondas
         if(InpViewMode == VIEW_FEED){ s_view.ShowFeedOnly(i); continue; }
