@@ -616,6 +616,19 @@ int OnCalculate(const int rates_total,
     ArrayResize(WaveKalman, rates_total);
     ArrayResize(FeedTrace, rates_total);
 
+    // Garantir capacidade dos buffers de forecast (tamanho >= rates_total)
+    if(ArraySize(ForecastMark1) < rates_total)
+    {
+        ArrayResize(ForecastMark1, rates_total);
+        ArrayResize(ForecastMark2, rates_total);
+        ArrayResize(ForecastMark3, rates_total);
+        ArrayResize(ForecastMark4, rates_total);
+        ArrayResize(ForecastMark5, rates_total);
+        ArrayResize(ForecastMark6, rates_total);
+        ArrayResize(ForecastMark7, rates_total);
+        ArrayResize(ForecastMark8, rates_total);
+    }
+
     int start = MathMax(prev_calculated-1, InpFFTWindow-1);
     for(int i=start;i<rates_total;i++)
     {
