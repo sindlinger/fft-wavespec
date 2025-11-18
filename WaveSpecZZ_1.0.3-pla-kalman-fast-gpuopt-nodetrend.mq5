@@ -3,7 +3,7 @@
 #property link      ""
 #property version   "1.005"
 #property indicator_separate_window
-#property indicator_buffers 23
+#property indicator_buffers 22
 #property indicator_plots   9
 
 // Buffers ZigZag mínimo (picos/fundos) para construir feed (calculations only)
@@ -81,12 +81,6 @@ input double InpKalmanFollowStrength  = 1.0;
 
 #property indicator_label9  "FeedTrace"
 #property indicator_type9   DRAW_LINE
-#property indicator_color9  clrWhite
-#property indicator_style9  STYLE_SOLID
-#property indicator_width9  1
-// Label buffer to show feed mode visually (plot 9)
-#property indicator_type9   DRAW_LINE
-#property indicator_label9  "FeedTrace"
 #property indicator_color9  clrWhite
 #property indicator_style9  STYLE_DOT
 #property indicator_width9  1
@@ -184,31 +178,7 @@ bool EnsureGpu(int length)
     return true;
 }
 
-// Simple CPU FFT fallback (radix-2, real-to-complex)
-void CpuFftRealForward(const double &in[], int len, double &out_r[], double &out_i[])
-{
-    if(len<=0 || (len & (len-1))!=0) return;
-    ArrayResize(out_r,len); ArrayResize(out_i,len);
-    for(int i=0;i<len;i++){ out_r[i]=in[i]; out_i[i]=0.0; }
-    int j=0;
-    for(int i=0;i<len;i++){
-        if(i<j){ double tr=out_r[i]; out_r[i]=out_r[j]; out_r[j]=tr; double ti=out_i[i]; out_i[i]=out_i[j]; out_i[j]=ti; }
-        int m=len>>1; while(m>=1 && j>=m){ j-=m; m>>=1; } j+=m;
-    }
-    for(int step=1; step<len; step<<=1){
-        double theta=-M_PI/step; double wpr=-2.0*sin(0.5*theta)*sin(0.5*theta); double wpi=sin(theta);
-        for(int m=0;m<step;m++){
-            double wr=1.0, wi=0.0;
-            for(int k=m;k<len;k+=(step<<1)){
-                int l=k+step; double tr=wr*out_r[l]-wi*out_i[l]; double ti=wr*out_i[l]+wi*out_r[l];
-                out_r[l]=out_r[k]-tr; out_i[l]=out_i[k]-ti; out_r[k]+=tr; out_i[k]+=ti;
-            }
-            double wrn=wr*wpr - wi*wpi + wr; double win=wi*wpr + wr*wpi + wi; wr=wrn; wi=win;
-        }
-    }
-}
-
-// PLA builder (fallback: flat segment)
+// PLA builder (sem fallback)
 bool BuildPlaPriceSeries(const int start_pos, const datetime &time[], const double &close[])
 {
     static double feed_close_tf[]; ArrayResize(feed_close_tf, InpFFTWindow); ArraySetAsSeries(feed_close_tf, true);
@@ -292,6 +262,7 @@ int OnCalculate(const int rates_total,
     ArrayResize(detrended_data, InpFFTWindow);
     ArrayResize(spectrum, InpFFTWindow/2);
     ArrayResize(WaveKalman, rates_total);
+    ArrayResize(FeedTrace, rates_total);
 
     int start = MathMax(prev_calculated-1, InpFFTWindow-1);
     for(int i=start;i<rates_total;i++)
@@ -300,30 +271,41 @@ int OnCalculate(const int rates_total,
         if(start_pos<0) continue;
 
         // feed selection
-    if(InpFeedData==FEED_CLOSE)
-    {
-        int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
-        if(shift<0) continue;
-        static double buf[]; ArrayResize(buf, InpFFTWindow); ArraySetAsSeries(buf,true);
-        if(CopyClose(_Symbol, InpFeedTimeframe, shift, InpFFTWindow, buf)!=InpFFTWindow) continue;
-        for(int j=0;j<InpFFTWindow;j++) feed_data[j]=buf[InpFFTWindow-1-j];
-    }
-    else if(InpFeedData==FEED_PLA)
-    {
-        if(!BuildPlaPriceSeries(start_pos, time, close)) continue;
-    }
-    else // ZigZag com modos STEP / INTERP / MID
-    {
-        if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagMode))
+        if(InpFeedData==FEED_CLOSE)
+        {
+            int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
+            if(shift<0) continue;
+            static double buf[]; ArrayResize(buf, InpFFTWindow); ArraySetAsSeries(buf,true);
+            if(CopyClose(_Symbol, InpFeedTimeframe, shift, InpFFTWindow, buf)!=InpFFTWindow) continue;
+            for(int j=0;j<InpFFTWindow;j++) feed_data[j]=buf[InpFFTWindow-1-j];
+        }
+        else if(InpFeedData==FEED_PLA)
+        {
+            if(!BuildPlaPriceSeries(start_pos, time, close)) continue;
+        }
+        else // ZigZag com modos STEP / INTERP / MID
+        {
+            if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagMode))
+                continue;
+        }
+
+        // Exibição exclusiva: se for só feed, publicar feed e pular cálculo de ondas
+        if(InpViewMode == VIEW_FEED)
+        {
+            FeedTrace[i] = feed_data[InpFFTWindow-1];
+            WaveBuffer1[i]=WaveBuffer2[i]=WaveBuffer3[i]=WaveBuffer4[i]=EMPTY_VALUE;
+            WaveBuffer5[i]=WaveBuffer6[i]=WaveBuffer7[i]=WaveBuffer8[i]=EMPTY_VALUE;
+            WavePeriod1[i]=WavePeriod2[i]=WavePeriod3[i]=WavePeriod4[i]=EMPTY_VALUE;
+            WavePeriod5[i]=WavePeriod6[i]=WavePeriod7[i]=WavePeriod8[i]=EMPTY_VALUE;
             continue;
-    }
+        }
+        else
+        {
+            // Ondas visíveis: esconder feed
+            FeedTrace[i]=EMPTY_VALUE;
+        }
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
-
-        // sempre grava o trace; visibilidade controlada por InpViewMode
-        if(ArraySize(FeedTrace) < rates_total)
-            ArrayResize(FeedTrace, rates_total);
-        FeedTrace[i] = feed_data[InpFFTWindow-1];
 
         // windowing: none (can add later)
 
