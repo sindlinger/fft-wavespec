@@ -29,6 +29,10 @@ enum FEED_DATA_MODE { FEED_PLA = 0, FEED_ZIGZAG = 1, FEED_CLOSE = 2 };
 input FEED_DATA_MODE InpFeedData = FEED_PLA;
 input ENUM_TIMEFRAMES InpFeedTimeframe = PERIOD_M1;
 
+// Desenho das waves
+enum DRAW_MODE { DRAW_POINTS = 0, DRAW_SINE_RECON = 1 };
+input DRAW_MODE InpDrawMode = DRAW_SINE_RECON;
+
 input group "PLA"
 input int    InpPlaMaxSegments = 32;
 input double InpPlaMaxError    = 0.0005;
@@ -585,17 +589,22 @@ int OnCalculate(const int rates_total,
         {
             int base = s*stride;
             double amp    = g_cycles_raw[base+0];
+            double freq   = g_cycles_raw[base+1];
             double period = g_cycles_raw[base+2];
+            double phase  = g_cycles_raw[base+3];
+            double wave_value = amp;
+            if(InpDrawMode == DRAW_SINE_RECON)
+                wave_value = amp * MathSin(phase);
             switch(s)
             {
-                case 0: WaveBuffer1[i]=amp; WavePeriod1[i]=period; break;
-                case 1: WaveBuffer2[i]=amp; WavePeriod2[i]=period; break;
-                case 2: WaveBuffer3[i]=amp; WavePeriod3[i]=period; break;
-                case 3: WaveBuffer4[i]=amp; WavePeriod4[i]=period; break;
-                case 4: WaveBuffer5[i]=amp; WavePeriod5[i]=period; break;
-                case 5: WaveBuffer6[i]=amp; WavePeriod6[i]=period; break;
-                case 6: WaveBuffer7[i]=amp; WavePeriod7[i]=period; break;
-                case 7: WaveBuffer8[i]=amp; WavePeriod8[i]=period; break;
+                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=period; break;
+                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=period; break;
+                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=period; break;
+                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=period; break;
+                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=period; break;
+                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=period; break;
+                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=period; break;
+                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=period; break;
             }
         }
 
