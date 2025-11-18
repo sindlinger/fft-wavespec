@@ -147,10 +147,11 @@ int OnInit()
         for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_NONE);
         PlotIndexSetInteger(8, PLOT_DRAW_TYPE, DRAW_LINE);
     }
-    else
+    else // VIEW_WAVES
     {
-        for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_LINE);
+        // Feed totalmente oculto
         PlotIndexSetInteger(8, PLOT_DRAW_TYPE, DRAW_NONE);
+        for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_LINE);
     }
 
     return(INIT_SUCCEEDED);
