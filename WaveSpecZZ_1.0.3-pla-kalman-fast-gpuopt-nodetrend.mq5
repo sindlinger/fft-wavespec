@@ -86,7 +86,7 @@ input double InpKalmanFollowStrength  = 1.0;
 #property indicator_width9  1
 // Label buffer to show feed mode visually (plot 9)
 #property indicator_type9   DRAW_LINE
-#property indicator_label9  "FeedLabel"
+#property indicator_label9  "FeedTrace"
 #property indicator_color9  clrWhite
 #property indicator_style9  STYLE_DOT
 #property indicator_width9  1
