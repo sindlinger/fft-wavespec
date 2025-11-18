@@ -200,14 +200,19 @@ bool BuildZigZagPriceSeries(const int shift_end_feed,
 
     int len = InpFFTWindow;
     // Copia buffers do ZigZag padrão: 0 = main (picos/fundos), 1 = high, 2 = low
-    static double zz_main[], zz_high[], zz_low[];
+    static double zz_main[], zz_high[], zz_low[], zz_peak[], zz_bottom[];
     ArraySetAsSeries(zz_main, true);
     ArraySetAsSeries(zz_high, true);
     ArraySetAsSeries(zz_low,  true);
+    ArraySetAsSeries(zz_peak, true);
+    ArraySetAsSeries(zz_bottom, true);
     ArrayResize(zz_main, len); ArrayResize(zz_high, len); ArrayResize(zz_low, len);
-    int copied_main = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_main);
-    int copied_high = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_high);
-    int copied_low  = CopyBuffer(g_zig_handle, 2, shift_end_feed, len, zz_low);
+    ArrayResize(zz_peak, len); ArrayResize(zz_bottom, len);
+    int copied_main   = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_main);
+    int copied_high   = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_high);
+    int copied_low    = CopyBuffer(g_zig_handle, 2, shift_end_feed, len, zz_low);
+    int copied_peak   = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_peak);   // se indicador tiver buffer 0/1 separados
+    int copied_bottom = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_bottom); // idem
     if(copied_main != len || copied_high != len || copied_low != len)
         return false;
 
@@ -217,7 +222,12 @@ bool BuildZigZagPriceSeries(const int shift_end_feed,
     for(int j=0;j<len;j++)
     {
         int src = len-1-j;
-        main_ch[j] = zz_main[src];
+        // prioriza buffers separados de pico/fundo se existirem e forem não zero
+        double peak_v   = (copied_peak==len   ? zz_peak[src]   : 0.0);
+        double bottom_v = (copied_bottom==len ? zz_bottom[src] : 0.0);
+        double main_v   = zz_main[src];
+        double pick = (peak_v!=0.0) ? peak_v : (bottom_v!=0.0 ? bottom_v : main_v);
+        main_ch[j] = pick;
         high_ch[j] = zz_high[src];
         low_ch[j]  = zz_low[src];
     }
