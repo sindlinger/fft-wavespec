@@ -349,6 +349,14 @@ int OnInit()
         for(int p=0; p<8; p++) PlotIndexSetInteger(p, PLOT_DRAW_TYPE, DRAW_LINE);
     }
 
+    // Remover rótulos/valores no Data Window e na barra de título da subjanela
+    for(int p=0; p<indicator_plots; p++)
+    {
+        PlotIndexSetString(p, PLOT_LABEL, "");
+        PlotIndexSetInteger(p, PLOT_SHOW_DATA, false);
+    }
+    IndicatorSetString(INDICATOR_SHORTNAME, "WaveSpecZZ 1.1.0");
+
     return(INIT_SUCCEEDED);
 }
 
