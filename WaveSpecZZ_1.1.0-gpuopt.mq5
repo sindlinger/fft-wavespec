@@ -558,7 +558,7 @@ int OnCalculate(const int rates_total,
                                     g_cycles_raw,
                                     stride,
                                     InpGpuTopK,
-                                    &cycles_out);
+                                    cycles_out);
         if(st!=0 || cycles_out<=0)
             continue;
 
