@@ -41,6 +41,11 @@ input group "Feed View"
 enum VIEW_MODE { VIEW_WAVES = 0, VIEW_FEED = 1 };
 input VIEW_MODE InpViewMode = VIEW_WAVES; // Waves OU feed (exclusivo)
 
+input group "GPU Cycle Extractor"
+input int    InpGpuTopK        = 2;        // ciclos extraídos da GPU
+input int    InpGpuMethod      = 1;        // 0=FFT ridge, 1=MUSIC/ESPRIT, -1=auto
+input int    InpGpuArOrder     = 8;        // ordem AR para MUSIC/ESPRIT
+
 input group "Kalman"
 input bool   InpEnableKalman    = false;
 input double InpKalmanFollowStrength  = 1.0;
