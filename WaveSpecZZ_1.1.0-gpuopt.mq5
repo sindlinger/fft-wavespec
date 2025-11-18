@@ -619,19 +619,6 @@ int OnCalculate(const int rates_total,
     if(ArraySize(WaveBuffer1) < rates_total) { ArrayResize(WaveBuffer1, rates_total); ArrayResize(WaveBuffer2, rates_total); ArrayResize(WaveBuffer3, rates_total); ArrayResize(WaveBuffer4, rates_total); ArrayResize(WaveBuffer5, rates_total); ArrayResize(WaveBuffer6, rates_total); ArrayResize(WaveBuffer7, rates_total); ArrayResize(WaveBuffer8, rates_total); }
     if(ArraySize(WavePeriod1) < rates_total) { ArrayResize(WavePeriod1, rates_total); ArrayResize(WavePeriod2, rates_total); ArrayResize(WavePeriod3, rates_total); ArrayResize(WavePeriod4, rates_total); ArrayResize(WavePeriod5, rates_total); ArrayResize(WavePeriod6, rates_total); ArrayResize(WavePeriod7, rates_total); ArrayResize(WavePeriod8, rates_total); }
 
-    // Garantir capacidade dos buffers de forecast (tamanho >= rates_total + max ETA ~ window)
-    int wanted = rates_total + InpFFTWindow;
-    if(ArraySize(ForecastMark1) < wanted)
-    {
-        ArrayResize(ForecastMark1, wanted);
-        ArrayResize(ForecastMark2, wanted);
-        ArrayResize(ForecastMark3, wanted);
-        ArrayResize(ForecastMark4, wanted);
-        ArrayResize(ForecastMark5, wanted);
-        ArrayResize(ForecastMark6, wanted);
-        ArrayResize(ForecastMark7, wanted);
-        ArrayResize(ForecastMark8, wanted);
-    }
 
     // Garantir capacidade dos buffers de forecast (tamanho >= rates_total)
     if(ArraySize(ForecastMark1) < rates_total)
