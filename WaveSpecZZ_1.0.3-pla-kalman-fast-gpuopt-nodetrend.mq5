@@ -271,6 +271,18 @@ int OnCalculate(const int rates_total,
                 const long &volume[],
                 const int &spread[])
 {
+    // Garante histórico mínimo no timeframe de feed para evitar janela vazia
+    int need_feed = InpFFTWindow + 256;
+    HistorySelect(TimeCurrent() - (long)need_feed * PeriodSeconds(InpFeedTimeframe), TimeCurrent());
+    static double preload_buf[];
+    int preload = CopyClose(_Symbol, InpFeedTimeframe, 0, need_feed, preload_buf);
+    if(preload < InpFFTWindow)
+    {
+        PrintFormat("[WaveSpecZZ][WARN] histórico insuficiente no feed %s (%d/%d); aguardando download.",
+                    EnumToString(InpFeedTimeframe), preload, InpFFTWindow);
+        return prev_calculated; // não avança até completar
+    }
+
     if(rates_total < InpFFTWindow) return prev_calculated;
 
     ArrayResize(feed_data, InpFFTWindow);
