@@ -3,6 +3,8 @@
 ## 2025-11-18
 - `WaveSpecZZ_1.1.0-gpuopt.mq5`
   - Import do bridge atualizado para `gpu_extract_cycles`; o indicador agora obtém os ciclos diretamente na GPU (FFT ou MUSIC/ESPRIT) conforme `InpGpuMethod/InpGpuArOrder`, sem qualquer fallback CPU.
+  - Defaults ajustados para “ciclos perfeitos”: `InpGpuMethod=1` (MUSIC/ESPRIT), `InpGpuArOrder=10`, `InpGpuTopK=2`, janela 4096.
+  - Limpamos buffers por barra antes de desenhar para evitar linhas horizontais quando menos de 8 ciclos vêm do core.
   - Mantida exibição exclusiva (feed ou waves); feed ocultado quando ondas ativas.
 - `WaveSpecZZ_1.0.3-pla-kalman-fast-gpuopt-nodetrend.mq5`
   - Exibição exclusiva via `InpViewMode`: ou só ondas (FFT) ou só feed; buffers contrários são preenchidos com `EMPTY_VALUE`.

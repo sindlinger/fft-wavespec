@@ -21,7 +21,7 @@ double ZigzagPeakBuffer[], ZigzagBottomBuffer[], ColorBuffer[], HighMapBuffer[],
 #define ALGLIB_STATUS_OK 0
 
 // Inputs
-input int  InpFFTWindow   = 16384;
+input int  InpFFTWindow   = 4096;
 input int  InpMinPeriod   = 18;
 input int  InpMaxPeriod   = 200;
 
@@ -47,7 +47,7 @@ input VIEW_MODE InpViewMode = VIEW_WAVES; // Waves OU feed (exclusivo)
 input group "GPU Cycle Extractor"
 input int    InpGpuTopK        = 2;        // ciclos extraídos da GPU
 input int    InpGpuMethod      = 1;        // 0=FFT ridge, 1=MUSIC/ESPRIT, -1=auto
-input int    InpGpuArOrder     = 8;        // ordem AR para MUSIC/ESPRIT
+input int    InpGpuArOrder     = 10;       // ordem AR para MUSIC/ESPRIT (ajustada p/ 2 ciclos “perfeitos”)
 input double InpGpuMinPeriod   = 9;        // períodos em barras
 input double InpGpuMaxPeriod   = 200;      // períodos em barras
 
@@ -561,6 +561,12 @@ int OnCalculate(const int rates_total,
                                     &cycles_out);
         if(st!=0 || cycles_out<=0)
             continue;
+
+        // Limpa buffers da barra antes de plotar (evita linhas horizontais quando top_k<8)
+        WaveBuffer1[i]=WaveBuffer2[i]=WaveBuffer3[i]=WaveBuffer4[i]=EMPTY_VALUE;
+        WaveBuffer5[i]=WaveBuffer6[i]=WaveBuffer7[i]=WaveBuffer8[i]=EMPTY_VALUE;
+        WavePeriod1[i]=WavePeriod2[i]=WavePeriod3[i]=WavePeriod4[i]=EMPTY_VALUE;
+        WavePeriod5[i]=WavePeriod6[i]=WavePeriod7[i]=WavePeriod8[i]=EMPTY_VALUE;
 
         // Preenche buffers waves com os ciclos retornados
         for(int s=0; s<MathMin(cycles_out, 8); s++)
