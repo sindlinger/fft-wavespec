@@ -619,6 +619,20 @@ int OnCalculate(const int rates_total,
     if(ArraySize(WaveBuffer1) < rates_total) { ArrayResize(WaveBuffer1, rates_total); ArrayResize(WaveBuffer2, rates_total); ArrayResize(WaveBuffer3, rates_total); ArrayResize(WaveBuffer4, rates_total); ArrayResize(WaveBuffer5, rates_total); ArrayResize(WaveBuffer6, rates_total); ArrayResize(WaveBuffer7, rates_total); ArrayResize(WaveBuffer8, rates_total); }
     if(ArraySize(WavePeriod1) < rates_total) { ArrayResize(WavePeriod1, rates_total); ArrayResize(WavePeriod2, rates_total); ArrayResize(WavePeriod3, rates_total); ArrayResize(WavePeriod4, rates_total); ArrayResize(WavePeriod5, rates_total); ArrayResize(WavePeriod6, rates_total); ArrayResize(WavePeriod7, rates_total); ArrayResize(WavePeriod8, rates_total); }
 
+    // Garantir capacidade dos buffers de forecast (tamanho >= rates_total + max ETA ~ window)
+    int wanted = rates_total + InpFFTWindow;
+    if(ArraySize(ForecastMark1) < wanted)
+    {
+        ArrayResize(ForecastMark1, wanted);
+        ArrayResize(ForecastMark2, wanted);
+        ArrayResize(ForecastMark3, wanted);
+        ArrayResize(ForecastMark4, wanted);
+        ArrayResize(ForecastMark5, wanted);
+        ArrayResize(ForecastMark6, wanted);
+        ArrayResize(ForecastMark7, wanted);
+        ArrayResize(ForecastMark8, wanted);
+    }
+
     // Garantir capacidade dos buffers de forecast (tamanho >= rates_total)
     if(ArraySize(ForecastMark1) < rates_total)
     {
@@ -667,8 +681,14 @@ int OnCalculate(const int rates_total,
         }
 
         // Limpa forecast buffers da barra atual (para evitar resíduos)
-        ForecastMark1[i]=ForecastMark2[i]=ForecastMark3[i]=ForecastMark4[i]=EMPTY_VALUE;
-        ForecastMark5[i]=ForecastMark6[i]=ForecastMark7[i]=ForecastMark8[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark1)) ForecastMark1[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark2)) ForecastMark2[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark3)) ForecastMark3[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark4)) ForecastMark4[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark5)) ForecastMark5[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark6)) ForecastMark6[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark7)) ForecastMark7[i]=EMPTY_VALUE;
+        if(i < ArraySize(ForecastMark8)) ForecastMark8[i]=EMPTY_VALUE;
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
 
@@ -724,14 +744,70 @@ int OnCalculate(const int rates_total,
             int t_forecast = i + (int)MathRound(eta);
             switch(s)
             {
-                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); ForecastMark1[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark1[t_forecast]=wave_value; break;
-                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); ForecastMark2[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark2[t_forecast]=wave_value; break;
-                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); ForecastMark3[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark3[t_forecast]=wave_value; break;
-                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); ForecastMark4[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark4[t_forecast]=wave_value; break;
-                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); ForecastMark5[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark5[t_forecast]=wave_value; break;
-                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); ForecastMark6[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark6[t_forecast]=wave_value; break;
-                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); ForecastMark7[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark7[t_forecast]=wave_value; break;
-                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); ForecastMark8[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark8[t_forecast]=wave_value; break;
+                case 0:
+                    WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark1)) ArrayResize(ForecastMark1, t_forecast+1);
+                        ForecastMark1[t_forecast]=wave_value;
+                    }
+                    break;
+                case 1:
+                    WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark2)) ArrayResize(ForecastMark2, t_forecast+1);
+                        ForecastMark2[t_forecast]=wave_value;
+                    }
+                    break;
+                case 2:
+                    WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark3)) ArrayResize(ForecastMark3, t_forecast+1);
+                        ForecastMark3[t_forecast]=wave_value;
+                    }
+                    break;
+                case 3:
+                    WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark4)) ArrayResize(ForecastMark4, t_forecast+1);
+                        ForecastMark4[t_forecast]=wave_value;
+                    }
+                    break;
+                case 4:
+                    WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark5)) ArrayResize(ForecastMark5, t_forecast+1);
+                        ForecastMark5[t_forecast]=wave_value;
+                    }
+                    break;
+                case 5:
+                    WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark6)) ArrayResize(ForecastMark6, t_forecast+1);
+                        ForecastMark6[t_forecast]=wave_value;
+                    }
+                    break;
+                case 6:
+                    WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark7)) ArrayResize(ForecastMark7, t_forecast+1);
+                        ForecastMark7[t_forecast]=wave_value;
+                    }
+                    break;
+                case 7:
+                    WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period);
+                    if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast < ArraySize(ForecastMark1))
+                    {
+                        if(t_forecast >= ArraySize(ForecastMark8)) ArrayResize(ForecastMark8, t_forecast+1);
+                        ForecastMark8[t_forecast]=wave_value;
+                    }
+                    break;
             }
         }
 
