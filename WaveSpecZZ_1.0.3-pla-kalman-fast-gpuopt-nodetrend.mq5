@@ -319,10 +319,10 @@ int OnCalculate(const int rates_total,
 
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
 
-        if(InpShowFeedTrace && ArraySize(FeedTrace)>=rates_total)
-        {
-            FeedTrace[i] = feed_data[InpFFTWindow-1];
-        }
+        // sempre grava o trace; visibilidade controlada por InpViewMode
+        if(ArraySize(FeedTrace) < rates_total)
+            ArrayResize(FeedTrace, rates_total);
+        FeedTrace[i] = feed_data[InpFFTWindow-1];
 
         // windowing: none (can add later)
 
