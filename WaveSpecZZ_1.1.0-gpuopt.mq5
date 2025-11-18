@@ -650,6 +650,10 @@ int OnCalculate(const int rates_total,
                 if(EtaCountdown[s] > 0.0) EtaCountdown[s] -= 1.0;
         }
 
+        // Limpa forecast buffers da barra atual (para evitar resíduos)
+        ForecastMark1[i]=ForecastMark2[i]=ForecastMark3[i]=ForecastMark4[i]=EMPTY_VALUE;
+        ForecastMark5[i]=ForecastMark6[i]=ForecastMark7[i]=ForecastMark8[i]=EMPTY_VALUE;
+
         ArrayCopy(detrended_data, feed_data, 0, 0, InpFFTWindow);
 
         // windowing: none (can add later)
@@ -719,12 +723,3 @@ int OnCalculate(const int rates_total,
 
     return(rates_total);
 }
-    // Forecast marker buffers dimensionados à série
-    ArrayResize(ForecastMark1, rates_total);
-    ArrayResize(ForecastMark2, rates_total);
-    ArrayResize(ForecastMark3, rates_total);
-    ArrayResize(ForecastMark4, rates_total);
-    ArrayResize(ForecastMark5, rates_total);
-    ArrayResize(ForecastMark6, rates_total);
-    ArrayResize(ForecastMark7, rates_total);
-    ArrayResize(ForecastMark8, rates_total);
