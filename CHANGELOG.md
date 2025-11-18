@@ -6,6 +6,9 @@
   - Defaults ajustados para “ciclos perfeitos”: `InpGpuMethod=1` (MUSIC/ESPRIT), `InpGpuArOrder=10`, `InpGpuTopK=2`, janela 4096.
   - Limpamos buffers por barra antes de desenhar para evitar linhas horizontais quando menos de 8 ciclos vêm do core.
   - Mantida exibição exclusiva (feed ou waves); feed ocultado quando ondas ativas.
+  - Sine reconstruction: `InpDrawMode=SINE_RECON` (padrão) desenha waves como senoides usando fase/amplitude do MUSIC.
+  - ETA countdown opcional (`InpEtaCountdown`): contagem regressiva em barras nos buffers de período; decrementa a cada barra.
+  - Forecast markers opcionais (`InpForecastMarks`): setas coloridas (por wave) na barra prevista do próximo topo/fundo (ETA > 1).
 - `WaveSpecZZ_1.0.3-pla-kalman-fast-gpuopt-nodetrend.mq5`
   - Exibição exclusiva via `InpViewMode`: ou só ondas (FFT) ou só feed; buffers contrários são preenchidos com `EMPTY_VALUE`.
   - Removido o rótulo/feed label duplicado e qualquer traço do feed quando ondas estão visíveis.
