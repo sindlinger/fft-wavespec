@@ -190,6 +190,40 @@ bool BuildPlaPriceSeries(const int shift_end_feed)
 }
 
 // ZigZag price series builder (3 modos: STEP, INTERP, MID) no feed timeframe
+bool LoadZigZagWindow(const int shift_end_feed,int len,double &main_ch[],double &high_ch[],double &low_ch[])
+{
+    static double zz_main[], zz_high[], zz_low[], zz_peak[], zz_bottom[];
+    ArraySetAsSeries(zz_main, true);
+    ArraySetAsSeries(zz_high, true);
+    ArraySetAsSeries(zz_low,  true);
+    ArraySetAsSeries(zz_peak, true);
+    ArraySetAsSeries(zz_bottom, true);
+    ArrayResize(zz_main, len); ArrayResize(zz_high, len); ArrayResize(zz_low, len);
+    ArrayResize(zz_peak, len); ArrayResize(zz_bottom, len);
+
+    int copied_main   = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_main);
+    int copied_high   = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_high);
+    int copied_low    = CopyBuffer(g_zig_handle, 2, shift_end_feed, len, zz_low);
+    int copied_peak   = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_peak);   // picos (separados)
+    int copied_bottom = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_bottom); // fundos (separados)
+    if(copied_main != len || copied_high != len || copied_low != len)
+        return false;
+
+    ArrayResize(main_ch, len); ArrayResize(high_ch, len); ArrayResize(low_ch, len);
+    for(int j=0;j<len;j++)
+    {
+        int src = len-1-j; // reverte para cronológico
+        double peak_v   = (copied_peak==len   ? zz_peak[src]   : 0.0);
+        double bottom_v = (copied_bottom==len ? zz_bottom[src] : 0.0);
+        double main_v   = zz_main[src];
+        double pick = (peak_v!=0.0) ? peak_v : (bottom_v!=0.0 ? bottom_v : main_v);
+        main_ch[j] = pick;
+        high_ch[j] = zz_high[src];
+        low_ch[j]  = zz_low[src];
+    }
+    return true;
+}
+
 bool BuildZigZagPriceSeries(const int shift_end_feed,
                             const double &high[],
                             const double &low[],
@@ -199,38 +233,9 @@ bool BuildZigZagPriceSeries(const int shift_end_feed,
     if(shift_end_feed < 0) return false;
 
     int len = InpFFTWindow;
-    // Copia buffers do ZigZag padrão: 0 = main (picos/fundos), 1 = high, 2 = low
-    static double zz_main[], zz_high[], zz_low[], zz_peak[], zz_bottom[];
-    ArraySetAsSeries(zz_main, true);
-    ArraySetAsSeries(zz_high, true);
-    ArraySetAsSeries(zz_low,  true);
-    ArraySetAsSeries(zz_peak, true);
-    ArraySetAsSeries(zz_bottom, true);
-    ArrayResize(zz_main, len); ArrayResize(zz_high, len); ArrayResize(zz_low, len);
-    ArrayResize(zz_peak, len); ArrayResize(zz_bottom, len);
-    int copied_main   = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_main);
-    int copied_high   = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_high);
-    int copied_low    = CopyBuffer(g_zig_handle, 2, shift_end_feed, len, zz_low);
-    int copied_peak   = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_peak);   // se indicador tiver buffer 0/1 separados
-    int copied_bottom = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_bottom); // idem
-    if(copied_main != len || copied_high != len || copied_low != len)
-        return false;
-
-    // Reverter para ordem cronológica (mais antigo -> mais recente)
     static double main_ch[], high_ch[], low_ch[];
-    ArrayResize(main_ch, len); ArrayResize(high_ch, len); ArrayResize(low_ch, len);
-    for(int j=0;j<len;j++)
-    {
-        int src = len-1-j;
-        // prioriza buffers separados de pico/fundo se existirem e forem não zero
-        double peak_v   = (copied_peak==len   ? zz_peak[src]   : 0.0);
-        double bottom_v = (copied_bottom==len ? zz_bottom[src] : 0.0);
-        double main_v   = zz_main[src];
-        double pick = (peak_v!=0.0) ? peak_v : (bottom_v!=0.0 ? bottom_v : main_v);
-        main_ch[j] = pick;
-        high_ch[j] = zz_high[src];
-        low_ch[j]  = zz_low[src];
-    }
+    if(!LoadZigZagWindow(shift_end_feed, len, main_ch, high_ch, low_ch))
+        return false;
 
     int last_ext = -1;
     double last_val = 0.0;
