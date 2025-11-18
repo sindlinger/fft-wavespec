@@ -178,29 +178,25 @@ bool EnsureGpu(int length)
     return true;
 }
 
-// PLA builder (sem fallback)
-bool BuildPlaPriceSeries(const int start_pos, const datetime &time[], const double &close[])
+// PLA builder (sem fallback) alinhado ao timeframe de feed
+bool BuildPlaPriceSeries(const int shift_end_feed)
 {
     static double feed_close_tf[]; ArrayResize(feed_close_tf, InpFFTWindow); ArraySetAsSeries(feed_close_tf, true);
-    int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
-    if(shift<0) return false;
-    if(CopyClose(_Symbol, InpFeedTimeframe, shift, InpFFTWindow, feed_close_tf)!=InpFFTWindow) return false;
+    if(shift_end_feed<0) return false;
+    if(CopyClose(_Symbol, InpFeedTimeframe, shift_end_feed, InpFFTWindow, feed_close_tf)!=InpFFTWindow) return false;
     for(int j=0;j<InpFFTWindow;j++) feed_data[j]=feed_close_tf[InpFFTWindow-1-j];
     // trivial PLA: copy as-is
     return true;
 }
 
 // ZigZag price series builder (3 modos: STEP, INTERP, MID) no feed timeframe
-bool BuildZigZagPriceSeries(const int start_pos_chart,
+bool BuildZigZagPriceSeries(const int shift_end_feed,
                             const double &high[],
                             const double &low[],
                             const datetime &time[],
                             ZIG_MODE mode)
 {
-    if(start_pos_chart < 0) return false;
-    // Converter índice do gráfico para o índice no timeframe de feed
-    int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos_chart]);
-    if(shift < 0) return false; // sem histórico correspondente
+    if(shift_end_feed < 0) return false;
 
     int len = InpFFTWindow;
     // Copia buffers do ZigZag padrão: 0 = main (picos/fundos), 1 = high, 2 = low
@@ -209,9 +205,9 @@ bool BuildZigZagPriceSeries(const int start_pos_chart,
     ArraySetAsSeries(zz_high, true);
     ArraySetAsSeries(zz_low,  true);
     ArrayResize(zz_main, len); ArrayResize(zz_high, len); ArrayResize(zz_low, len);
-    int copied_main = CopyBuffer(g_zig_handle, 0, shift, len, zz_main);
-    int copied_high = CopyBuffer(g_zig_handle, 1, shift, len, zz_high);
-    int copied_low  = CopyBuffer(g_zig_handle, 2, shift, len, zz_low);
+    int copied_main = CopyBuffer(g_zig_handle, 0, shift_end_feed, len, zz_main);
+    int copied_high = CopyBuffer(g_zig_handle, 1, shift_end_feed, len, zz_high);
+    int copied_low  = CopyBuffer(g_zig_handle, 2, shift_end_feed, len, zz_low);
     if(copied_main != len || copied_high != len || copied_low != len)
         return false;
 
@@ -230,7 +226,7 @@ bool BuildZigZagPriceSeries(const int start_pos_chart,
     double last_val = 0.0;
     // inicializar last_ext com primeiro extremo à frente, se existir
     for(int k=0;k<len;k++){ if(main_ch[k]!=0.0){ last_ext=k; last_val=main_ch[k]; break; } }
-    if(last_ext==-1) last_val = (high[start_pos_chart]+low[start_pos_chart])*0.5;
+    if(last_ext==-1) last_val = (high[0]+low[0])*0.5; // fallback: preço atual do gráfico
 
     for(int j=0; j<len; ++j)
     {
@@ -288,22 +284,24 @@ int OnCalculate(const int rates_total,
         int start_pos = i - InpFFTWindow + 1;
         if(start_pos<0) continue;
 
+        // Índice (shift) no timeframe de feed para a barra corrente (fim da janela)
+        int shift_end_feed = iBarShift(_Symbol, InpFeedTimeframe, time[i]);
+        if(shift_end_feed < 0) continue;
+
         // feed selection
         if(InpFeedData==FEED_CLOSE)
         {
-            int shift = iBarShift(_Symbol, InpFeedTimeframe, time[start_pos]);
-            if(shift<0) continue;
             static double buf[]; ArrayResize(buf, InpFFTWindow); ArraySetAsSeries(buf,true);
-            if(CopyClose(_Symbol, InpFeedTimeframe, shift, InpFFTWindow, buf)!=InpFFTWindow) continue;
+            if(CopyClose(_Symbol, InpFeedTimeframe, shift_end_feed, InpFFTWindow, buf)!=InpFFTWindow) continue;
             for(int j=0;j<InpFFTWindow;j++) feed_data[j]=buf[InpFFTWindow-1-j];
         }
         else if(InpFeedData==FEED_PLA)
         {
-            if(!BuildPlaPriceSeries(start_pos, time, close)) continue;
+            if(!BuildPlaPriceSeries(shift_end_feed)) continue;
         }
         else // ZigZag com modos STEP / INTERP / MID
         {
-            if(!BuildZigZagPriceSeries(start_pos, high, low, time, InpZigZagMode))
+            if(!BuildZigZagPriceSeries(shift_end_feed, high, low, time, InpZigZagMode))
                 continue;
         }
 
