@@ -13,6 +13,9 @@ double ZigzagPeakBuffer[], ZigzagBottomBuffer[], ColorBuffer[], HighMapBuffer[],
   int  gpu_init(int device_index, int stream_count);
   void gpu_shutdown(void);
   int  gpu_fft_real_forward(const double &in[], int len, double &out[]);
+  int  gpu_extract_cycles(const double &series[], int len, int top_k, double min_period, double max_period,
+                          double sample_rate_seconds, int method, int ar_order,
+                          double &out[], int out_stride, int out_capacity, int &out_len);
 #import
 
 #define ALGLIB_STATUS_OK 0
