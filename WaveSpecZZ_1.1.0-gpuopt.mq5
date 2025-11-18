@@ -581,7 +581,6 @@ int OnCalculate(const int rates_total,
     ArrayResize(spectrum, InpFFTWindow/2);
     ArrayResize(WaveKalman, rates_total);
     ArrayResize(FeedTrace, rates_total);
-    ArrayResize(EtaCountdown, 8);
 
     int start = MathMax(prev_calculated-1, InpFFTWindow-1);
     for(int i=start;i<rates_total;i++)
@@ -668,16 +667,17 @@ int OnCalculate(const int rates_total,
                 wave_value = amp * MathSin(phase);
             if(InpEtaCountdown && eta > 0)
                EtaCountdown[s] = eta;
+            int t_forecast = i + (int)MathRound(eta);
             switch(s)
             {
-                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); ForecastMark1[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && i+(int)MathRound(eta)<rates_total) ForecastMark1[i+(int)MathRound(eta)]=wave_value; break;
-                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); ForecastMark2[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark2[i+(int)MathRound(eta)]=wave_value; break;
-                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); ForecastMark3[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark3[i+(int)MathRound(eta)]=wave_value; break;
-                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); ForecastMark4[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark4[i+(int)MathRound(eta)]=wave_value; break;
-                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); ForecastMark5[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark5[i+(int)MathRound(eta)]=wave_value; break;
-                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); ForecastMark6[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark6[i+(int)MathRound(eta)]=wave_value; break;
-                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); ForecastMark7[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark7[i+(int)MathRound(eta)]=wave_value; break;
-                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); ForecastMark8[i]=EMPTY_VALUE; if(InpForecastMarks && eta>0) ForecastMark8[i+(int)MathRound(eta)]=wave_value; break;
+                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); ForecastMark1[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark1[t_forecast]=wave_value; break;
+                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); ForecastMark2[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark2[t_forecast]=wave_value; break;
+                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); ForecastMark3[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark3[t_forecast]=wave_value; break;
+                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); ForecastMark4[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark4[t_forecast]=wave_value; break;
+                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); ForecastMark5[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark5[t_forecast]=wave_value; break;
+                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); ForecastMark6[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark6[t_forecast]=wave_value; break;
+                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); ForecastMark7[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark7[t_forecast]=wave_value; break;
+                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); ForecastMark8[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark8[t_forecast]=wave_value; break;
             }
         }
 
