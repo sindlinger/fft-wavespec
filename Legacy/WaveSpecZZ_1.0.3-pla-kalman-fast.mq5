@@ -502,7 +502,7 @@ bool BuildPlaPriceSeries(const int start_pos,
   }
 
 // RGB helper e enum de paletas vêm do header compartilhado
-#include "..\\Include\\PaletteDefinitions.mqh"
+#include "..\\..\\..\\Include\\PaletteDefinitions.mqh"
 
 inline double Clamp01(const double value)
 {
