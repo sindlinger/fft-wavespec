@@ -3,8 +3,8 @@
 #property link      ""
 #property version   "1.100"
 #property indicator_separate_window
-#property indicator_buffers 23  // 8 waves + feed + 8 forecasts + 5 zigzag calc + periods in calc slots
-#property indicator_plots   17  // 8 waves + feed + 8 forecast markers
+#property indicator_buffers 31  // waves, feed, forecast up/down, zigzag calc, periods
+#property indicator_plots   25  // 8 waves + feed + 8 up + 8 down
 
 // Buffers ZigZag mínimo (picos/fundos) para construir feed (calculations only)
 double ZigzagPeakBuffer[], ZigzagBottomBuffer[], ColorBuffer[], HighMapBuffer[], LowMapBuffer[];
@@ -101,39 +101,73 @@ input double InpKalmanFollowStrength  = 1.0;
 #property indicator_style9  STYLE_DOT
 #property indicator_width9  1
 
-// Forecast markers (plots 10-17) - usam cores das waves correspondentes
-#property indicator_label10 "FMark1"
+// Forecast markers UP (plots 10-17) - cores das waves
+#property indicator_label10 "FUp1"
 #property indicator_type10  DRAW_ARROW
 #property indicator_color10 clrRed
 #property indicator_width10 1
-#property indicator_label11 "FMark2"
+#property indicator_label11 "FUp2"
 #property indicator_type11  DRAW_ARROW
 #property indicator_color11 clrOrangeRed
 #property indicator_width11 1
-#property indicator_label12 "FMark3"
+#property indicator_label12 "FUp3"
 #property indicator_type12  DRAW_ARROW
 #property indicator_color12 clrOrange
 #property indicator_width12 1
-#property indicator_label13 "FMark4"
+#property indicator_label13 "FUp4"
 #property indicator_type13  DRAW_ARROW
 #property indicator_color13 clrGold
 #property indicator_width13 1
-#property indicator_label14 "FMark5"
+#property indicator_label14 "FUp5"
 #property indicator_type14  DRAW_ARROW
 #property indicator_color14 clrYellow
 #property indicator_width14 1
-#property indicator_label15 "FMark6"
+#property indicator_label15 "FUp6"
 #property indicator_type15  DRAW_ARROW
 #property indicator_color15 clrChartreuse
 #property indicator_width15 1
-#property indicator_label16 "FMark7"
+#property indicator_label16 "FUp7"
 #property indicator_type16  DRAW_ARROW
 #property indicator_color16 clrLime
 #property indicator_width16 1
-#property indicator_label17 "FMark8"
+#property indicator_label17 "FUp8"
 #property indicator_type17  DRAW_ARROW
 #property indicator_color17 clrSpringGreen
 #property indicator_width17 1
+
+// Forecast markers DOWN (plots 18-25) - cores das waves
+#property indicator_label18 "FDn1"
+#property indicator_type18  DRAW_ARROW
+#property indicator_color18 clrRed
+#property indicator_width18 1
+#property indicator_label19 "FDn2"
+#property indicator_type19  DRAW_ARROW
+#property indicator_color19 clrOrangeRed
+#property indicator_width19 1
+#property indicator_label20 "FDn3"
+#property indicator_type20  DRAW_ARROW
+#property indicator_color20 clrOrange
+#property indicator_width20 1
+#property indicator_label21 "FDn4"
+#property indicator_type21  DRAW_ARROW
+#property indicator_color21 clrGold
+#property indicator_width21 1
+#property indicator_label22 "FDn5"
+#property indicator_type22  DRAW_ARROW
+#property indicator_color22 clrYellow
+#property indicator_width22 1
+#property indicator_label23 "FDn6"
+#property indicator_type23  DRAW_ARROW
+#property indicator_color23 clrChartreuse
+#property indicator_width23 1
+#property indicator_label24 "FDn7"
+#property indicator_type24  DRAW_ARROW
+#property indicator_color24 clrLime
+#property indicator_width24 1
+#property indicator_label25 "FDn8"
+#property indicator_type25  DRAW_ARROW
+#property indicator_color25 clrSpringGreen
+#property indicator_width25 1
 
 
 double WaveBuffer1[],WaveBuffer2[],WaveBuffer3[],WaveBuffer4[];
@@ -670,14 +704,14 @@ int OnCalculate(const int rates_total,
             int t_forecast = i + (int)MathRound(eta);
             switch(s)
             {
-                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); ForecastMark1[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark1[t_forecast]=wave_value; break;
-                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); ForecastMark2[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark2[t_forecast]=wave_value; break;
-                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); ForecastMark3[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark3[t_forecast]=wave_value; break;
-                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); ForecastMark4[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark4[t_forecast]=wave_value; break;
-                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); ForecastMark5[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark5[t_forecast]=wave_value; break;
-                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); ForecastMark6[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark6[t_forecast]=wave_value; break;
-                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); ForecastMark7[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark7[t_forecast]=wave_value; break;
-                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); ForecastMark8[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast<rates_total) ForecastMark8[t_forecast]=wave_value; break;
+                case 0: WaveBuffer1[i]=wave_value; WavePeriod1[i]=(InpEtaCountdown?EtaCountdown[0]:period); ForecastMark1[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark1[t_forecast]=wave_value; break;
+                case 1: WaveBuffer2[i]=wave_value; WavePeriod2[i]=(InpEtaCountdown?EtaCountdown[1]:period); ForecastMark2[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark2[t_forecast]=wave_value; break;
+                case 2: WaveBuffer3[i]=wave_value; WavePeriod3[i]=(InpEtaCountdown?EtaCountdown[2]:period); ForecastMark3[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark3[t_forecast]=wave_value; break;
+                case 3: WaveBuffer4[i]=wave_value; WavePeriod4[i]=(InpEtaCountdown?EtaCountdown[3]:period); ForecastMark4[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark4[t_forecast]=wave_value; break;
+                case 4: WaveBuffer5[i]=wave_value; WavePeriod5[i]=(InpEtaCountdown?EtaCountdown[4]:period); ForecastMark5[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark5[t_forecast]=wave_value; break;
+                case 5: WaveBuffer6[i]=wave_value; WavePeriod6[i]=(InpEtaCountdown?EtaCountdown[5]:period); ForecastMark6[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark6[t_forecast]=wave_value; break;
+                case 6: WaveBuffer7[i]=wave_value; WavePeriod7[i]=(InpEtaCountdown?EtaCountdown[6]:period); ForecastMark7[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark7[t_forecast]=wave_value; break;
+                case 7: WaveBuffer8[i]=wave_value; WavePeriod8[i]=(InpEtaCountdown?EtaCountdown[7]:period); ForecastMark8[i]=EMPTY_VALUE; if(InpForecastMarks && eta>1 && t_forecast>i && t_forecast<rates_total) ForecastMark8[t_forecast]=wave_value; break;
             }
         }
 
@@ -685,3 +719,12 @@ int OnCalculate(const int rates_total,
 
     return(rates_total);
 }
+    // Forecast marker buffers dimensionados à série
+    ArrayResize(ForecastMark1, rates_total);
+    ArrayResize(ForecastMark2, rates_total);
+    ArrayResize(ForecastMark3, rates_total);
+    ArrayResize(ForecastMark4, rates_total);
+    ArrayResize(ForecastMark5, rates_total);
+    ArrayResize(ForecastMark6, rates_total);
+    ArrayResize(ForecastMark7, rates_total);
+    ArrayResize(ForecastMark8, rates_total);
