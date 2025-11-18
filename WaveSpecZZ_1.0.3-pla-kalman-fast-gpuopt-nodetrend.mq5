@@ -243,6 +243,7 @@ bool BuildZigZagPriceSeries(const int shift_end_feed,
                     int next=-1;
                     for(int k=j+1;k<len;k++){ if(main_ch[k]!=0.0){ next=k; break; } }
                     if(next==-1){ v = last_val; }
+                    else if(next<=last_ext+0){ v = last_val; } // evita divisão por zero
                     else{
                         double next_val = main_ch[next];
                         double t = (double)(j - last_ext) / (double)(next - last_ext);
