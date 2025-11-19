@@ -67,7 +67,7 @@ input bool   InpBatchWarmup    = true;     // usa api batch no primeiro run (hop
 input bool   InpForceBatch     = true;     // se true, ignora cache e refaz batch no attach
 input int    InpBatchBarsLimit = 20000;    // máximo de barras usadas no warmup batch (0 = usa InpMaxLiveBars)
 input int    InpBatchWaitMs    = 120000;   // tempo máximo para aguardar batch (ms); 0 = aguarda indefinidamente
-input int    InpMaxLiveBars    = 120000;   // limite de barras processadas no gráfico (0=todas)
+input int    InpMaxLiveBars    = 20000;    // limite de barras processadas no gráfico (0=todas)
 
 input group "MUSIC Weights"
 input bool   InpUseMusicWeights = true;    // pondera amplitude por energia*coerência*SNR*score
