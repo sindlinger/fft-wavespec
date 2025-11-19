@@ -65,7 +65,8 @@ input bool   InpMusicOnly      = true;     // plotar apenas ciclos MUSIC/ESPRIT 
 input bool   InpCycleCache     = true;     // cacheia waves/ciclos reconstruídos para warmup instantâneo
 input bool   InpBatchWarmup    = true;     // usa api batch no primeiro run (hop=1) antes do modo online
 input bool   InpForceBatch     = true;     // se true, ignora cache e refaz batch no attach
-input int    InpBatchBarsLimit = 30000;    // máximo de barras usadas no warmup batch (0 = usa InpMaxLiveBars)
+input int    InpBatchBarsLimit = 20000;    // máximo de barras usadas no warmup batch (0 = usa InpMaxLiveBars)
+input int    InpBatchWaitMs    = 120000;   // tempo máximo para aguardar batch (ms); 0 = aguarda indefinidamente
 input int    InpMaxLiveBars    = 120000;   // limite de barras processadas no gráfico (0=todas)
 
 input group "MUSIC Weights"
@@ -695,6 +696,7 @@ int OnInit()
 
 void OnDeinit(const int reason)
 {
+    PrintFormat("[WaveSpecZZ][DEINIT] reason=%d", reason);
     PrintFormat("[WaveSpecZZ] OnDeinit reason=%d", reason);
     if(g_zig_handle != INVALID_HANDLE)
         IndicatorRelease(g_zig_handle);
@@ -706,11 +708,13 @@ void OnDeinit(const int reason)
     g_cycles_job_id = 0;
     if(g_gpu_session)
     {
+        Print("[WaveSpecZZ][DEINIT] shutting down GPU session");
         gpu_shutdown();
         g_gpu_session=false;
     }
 
     ArrayInitialize(EtaCountdown, 0.0);
+    g_cycle_cache_loaded=false;
 }
 
 bool EnsureGpu(int length)
@@ -985,7 +989,7 @@ int OnCalculate(const int rates_total,
         // Batch warmup sempre que habilitado ou se cache não estava disponível
         if(InpBatchWarmup)
         {
-            Print("[WaveSpecZZ][BATCH] cache não encontrado; iniciando batch warmup...");
+            Print("[WaveSpecZZ][BATCH][WARMUP] cache não encontrado; iniciando batch warmup...");
             // Garante backend carregado antes de chamar a API batch (senão retorna BACKEND_UNAVAILABLE)
             EnsureGpu(InpFFTWindow);
             // Prepara série de preços (close) no TF atual
@@ -1004,7 +1008,7 @@ int OnCalculate(const int rates_total,
                 const int stride = 15;
                 int nwin = 1 + (got - InpFFTWindow) / hop;
                 int buf_cap = nwin * InpGpuTopK * stride;
-                PrintFormat("[WaveSpecZZ][BATCH] len=%d win=%d hop=%d nwin=%d topk=%d stride=%d buf_cap=%d", got, InpFFTWindow, hop, nwin, InpGpuTopK, stride, buf_cap);
+                PrintFormat("[WaveSpecZZ][BATCH][WARMUP] len=%d win=%d hop=%d nwin=%d topk=%d stride=%d buf_cap=%d", got, InpFFTWindow, hop, nwin, InpGpuTopK, stride, buf_cap);
                 double cycles[]; ArrayResize(cycles, buf_cap);
                 long jid=0; int st = gpu_submit_extract_cycles_batch(prices, got, InpFFTWindow, hop, InpGpuTopK,
                                                                      InpGpuMinPeriod, InpGpuMaxPeriod, (double)PeriodSeconds(FeedTF()),
@@ -1013,16 +1017,23 @@ int OnCalculate(const int rates_total,
                 {
                     PrintFormat("[WaveSpecZZ][BATCH] submitted job=%I64d len=%d windows=%d", jid, got, nwin);
                     int ready=0,out_len=0;
-                    for(int tries=0; tries<2000 && ready==0; ++tries)
+                    ulong wait_start = GetTickCount64();
+                    const ulong wait_limit = (InpBatchWaitMs > 0 ? (ulong)InpBatchWaitMs : 0);
+                    while(true)
                     {
                         st = gpu_try_get_cycles_batch(jid, cycles, buf_cap, out_len, ready);
-                        if(st==ALGLIB_STATUS_OK && ready==0) Sleep(5);
-                        else if(st!=ALGLIB_STATUS_OK && st!=ALGLIB_STATUS_NOT_READY) break;
+                        if(st==ALGLIB_STATUS_OK && ready==1)
+                            break;
+                        if(st!=ALGLIB_STATUS_OK && st!=ALGLIB_STATUS_NOT_READY)
+                            break;
+                        if(wait_limit > 0 && (GetTickCount64() - wait_start) >= wait_limit)
+                            break;
+                        Sleep(5);
                     }
                     gpu_free_job(jid);
                     if(st==ALGLIB_STATUS_OK && ready==1 && out_len>0)
                     {
-                        PrintFormat("[WaveSpecZZ][BATCH] job ready cycles=%d", out_len);
+                        PrintFormat("[WaveSpecZZ][BATCH][WARMUP] job ready cycles=%d", out_len);
                         // zera buffers
                         ArrayResize(WaveBuffer1, got); ArrayResize(WaveBuffer2, got);
                         ArrayResize(WavePeriod1, got); ArrayResize(WavePeriod2, got);
@@ -1087,7 +1098,8 @@ int OnCalculate(const int rates_total,
                     }
                     else
                     {
-                        PrintFormat("[WaveSpecZZ][BATCH][ERR] st=%d ready=%d out=%d", st, ready, out_len);
+                        ulong waited = GetTickCount64() - wait_start;
+                        PrintFormat("[WaveSpecZZ][BATCH][ERR] st=%d ready=%d out=%d waited_ms=%I64u", st, ready, out_len, waited);
                     }
                 }
                 else
@@ -1103,13 +1115,13 @@ int OnCalculate(const int rates_total,
     }
 
     // Log único de modo/parametrização (síncrono/assíncrono, streams, depth, wait)
-    if(!g_mode_logged)
-    {
-        int streams_clamped = MathMax(16, MathMin(512, InpGpuStreams));
-        PrintFormat("[WaveSpecZZ][MODECFG] async=%s depth=%d streams=%d wait_ms=5 fallback=sync_after_wait feed_tf=%s fft=%d topk=%d",
-                    (InpAsyncCycles ? "on" : "off"), InpAsyncDepth, streams_clamped, EnumToString(FeedTF()), InpFFTWindow, InpGpuTopK);
-        g_mode_logged = true;
-    }
+if(!g_mode_logged)
+{
+    int streams_clamped = MathMax(16, MathMin(512, InpGpuStreams));
+    PrintFormat("[WaveSpecZZ][MODECFG][ASYNC] submit=%s depth=%d streams=%d wait_loop_ms=5 fallback=sync_after_wait feed_tf=%s fft=%d topk=%d",
+                (InpAsyncCycles ? "on" : "off"), InpAsyncDepth, streams_clamped, EnumToString(FeedTF()), InpFFTWindow, InpGpuTopK);
+    g_mode_logged = true;
+}
 
     // Limite de barras em tempo real (evita travar carregando 1M+); live_limit <= rates_total
     int live_limit = rates_total;
@@ -1133,7 +1145,7 @@ int OnCalculate(const int rates_total,
         g_prog_total = (start - end) + 1;
         g_prog_done  = false;
         g_prog_logged_done = false;
-        PrintFormat("[WaveSpecZZ][PROG] first-run span=%d windows=%d maxbars=%d start=%d end=%d live_limit=%d", span, InpBackfillWindows, InpMaxProcessBars, start, end, live_limit);
+        PrintFormat("[WaveSpecZZ][PROG][WARMUP] span=%d windows=%d maxbars=%d start=%d end=%d live_limit=%d", span, InpBackfillWindows, InpMaxProcessBars, start, end, live_limit);
     }
     else
     {
@@ -1188,7 +1200,7 @@ int OnCalculate(const int rates_total,
             string view_mode = (InpViewMode==VIEW_FEED ? "FEED" : "WAVES");
             int done = (g_prog_start - i) + 1;
             double pct = (g_prog_total>0) ? (100.0 * done / g_prog_total) : 100.0;
-            PrintFormat("[WaveSpecZZ][FEED] i=%d tf=%s shift=%d mode=%s view=%s window=%d progress=%d/%d (%.1f%%)",
+            PrintFormat("[WaveSpecZZ][FEED][LIVE] i=%d tf=%s shift=%d mode=%s view=%s window=%d progress=%d/%d (%.1f%%)",
                         i, EnumToString(FeedTF()), shift_end_feed, feed_mode, view_mode, InpFFTWindow,
                         done, (g_prog_total>0 ? g_prog_total : done), pct);
         }
