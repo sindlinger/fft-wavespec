@@ -1140,8 +1140,13 @@ if(!g_mode_logged)
 
     if(prev_calculated==0)
     {
-        int span = MathMax(InpFFTWindow, InpFFTWindow * InpBackfillWindows); // mínimo: 1 janela
-        if(InpMaxProcessBars > 0) span = MathMin(span, InpMaxProcessBars);
+        int span = InpFFTWindow;
+        if(InpBackfillWindows > 0)
+            span = MathMax(span, InpFFTWindow * InpBackfillWindows);
+        else
+            span = live_limit; // 0 (ou negativo) = todo histórico permitido
+        if(InpMaxProcessBars > 0)
+            span = MathMin(span, InpMaxProcessBars);
         span = MathMin(span, live_limit);
 
         // Processa apenas o necessário: últimas 'span' barras (mais recentes)
