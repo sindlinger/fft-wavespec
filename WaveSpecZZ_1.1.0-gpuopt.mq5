@@ -334,6 +334,7 @@ string g_cycle_cache_file = "";
 // Feed timeframe helper: sempre usa o timeframe do gráfico
 ENUM_TIMEFRAMES FeedTF(){ return (ENUM_TIMEFRAMES)Period(); }
 bool g_gpu_session = false;
+bool g_gpu_init_logged = false;
 int g_zig_handle = INVALID_HANDLE;
 const int kFeedLogEvery = 128; // log feed status a cada 128 barras
 
@@ -711,6 +712,7 @@ void OnDeinit(const int reason)
         Print("[WaveSpecZZ][DEINIT] shutting down GPU session");
         gpu_shutdown();
         g_gpu_session=false;
+        g_gpu_init_logged=false;
     }
 
     ArrayInitialize(EtaCountdown, 0.0);
@@ -725,11 +727,16 @@ bool EnsureGpu(int length)
     {
         // Core aceita até 512 streams; aplica piso mínimo para evitar valores muito baixos herdados do tester
         int streams = MathMax(16, MathMin(512, InpGpuStreams));
-        PrintFormat("[WaveSpecZZ][GPU] gpu_init start streams=%d", streams);
+        if(!g_gpu_init_logged)
+        {
+            PrintFormat("[WaveSpecZZ][GPU] gpu_init start streams=%d", streams);
+            g_gpu_init_logged=true;
+        }
         int st = gpu_init(0, streams);
         if(st!=ALGLIB_STATUS_OK)
         {
             g_gpu_init_fail_counter++;
+            g_gpu_init_logged=false; // permite novo log ao tentar novamente
             if((g_gpu_init_fail_counter % 50)==1 && (TimeCurrent()-g_gpu_init_last_log)>=5)
             {
                 ushort wbuf[256];
