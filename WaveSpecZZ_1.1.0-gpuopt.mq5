@@ -1333,66 +1333,74 @@ if(!g_mode_logged)
             }
         }
 
-        // modo assíncrono: se ainda não temos resultado, apenas loga; cálculo real vem do fallback abaixo para evitar buracos
-        // Espera curta pelo async; se não vier, fallback síncrono e segue
-        int wait_loops = 0;
-        const int max_wait = 5; // ~5 ms
-        while(!have_cycles && wait_loops < max_wait && g_cycles_job_count>0)
+        // modo assíncrono: espera até o job entregar (sem fallback)
+        if(allow_async && !have_cycles && g_cycles_job_count>0)
         {
-            long jid = g_cycles_jobs[0];
-            int ready=0, out_len=0;
-            int stp = gpu_try_get_cycles(jid, g_cycles_job_buf, stride, InpGpuTopK, out_len, ready);
-            if(stp==ALGLIB_STATUS_OK && ready==1 && out_len>0)
+            while(!have_cycles && g_cycles_job_count>0)
             {
-                ArrayCopy(g_cycles_raw, g_cycles_job_buf, 0, 0, out_len*stride);
-                cycles_out = out_len;
-                have_cycles = true;
-                gpu_free_job(jid);
-                // remove job da fila
-                for(int m=0; m<g_cycles_job_count-1; ++m) g_cycles_jobs[m]=g_cycles_jobs[m+1];
-                g_cycles_job_count--;
-                if(InpDebugCycles && (i%256)==0)
-                    PrintFormat("[WaveSpecZZ][GPU][ASYNC] job ready cycles=%d i=%d", cycles_out, i);
-                break;
+                long jid = g_cycles_jobs[0];
+                int ready=0, out_len=0;
+                int stp = gpu_try_get_cycles(jid, g_cycles_job_buf, stride, InpGpuTopK, out_len, ready);
+                if(stp==ALGLIB_STATUS_OK && ready==1 && out_len>0)
+                {
+                    ArrayCopy(g_cycles_raw, g_cycles_job_buf, 0, 0, out_len*stride);
+                    cycles_out = out_len;
+                    have_cycles = true;
+                    gpu_free_job(jid);
+                    for(int m=0; m<g_cycles_job_count-1; ++m) g_cycles_jobs[m]=g_cycles_jobs[m+1];
+                    g_cycles_job_count--;
+                    if(InpDebugCycles && (i%256)==0)
+                        PrintFormat("[WaveSpecZZ][GPU][ASYNC] job ready cycles=%d i=%d", cycles_out, i);
+                }
+                else if(stp==ALGLIB_STATUS_NOT_READY)
+                {
+                    Sleep(1);
+                }
+                else
+                {
+                    if((i%256)==0)
+                        PrintFormat("[WaveSpecZZ][GPU][ASYNC][ERR] job=%I64d st=%d ready=%d out=%d", jid, stp, ready, out_len);
+                    gpu_free_job(jid);
+                    for(int m=0; m<g_cycles_job_count-1; ++m) g_cycles_jobs[m]=g_cycles_jobs[m+1];
+                    g_cycles_job_count--;
+                    break;
+                }
             }
-            if(stp!=ALGLIB_STATUS_NOT_READY)
-            {
-                if((i%256)==0)
-                    PrintFormat("[WaveSpecZZ][GPU][ASYNC][ERR] job=%I64d st=%d ready=%d out=%d", jid, stp, ready, out_len);
-                gpu_free_job(jid);
-                for(int m=0; m<g_cycles_job_count-1; ++m) g_cycles_jobs[m]=g_cycles_jobs[m+1];
-                g_cycles_job_count--;
-                break;
-            }
-            Sleep(1);
-            wait_loops++;
         }
 
-        // fallback síncrono se o async não entregou a tempo
+        // fallback apenas quando modo assíncrono está desligado
         if(!have_cycles)
         {
-            int st_sync = gpu_extract_cycles(detrended_data,
-                                             InpFFTWindow,
-                                             InpGpuTopK,
-                                             InpGpuMinPeriod,
-                                             InpGpuMaxPeriod,
-                                             sample_rate_sec,
-                                             InpGpuMethod,
-                                             InpGpuArOrder,
-                                             g_cycles_raw,
-                                             stride,
-                                             InpGpuTopK,
-                                             cycles_out);
-            if(st_sync==ALGLIB_STATUS_OK && cycles_out>0)
+            if(!allow_async)
             {
-                have_cycles = true;
-                if(InpDebugCycles && (i%256)==0)
-                    PrintFormat("[WaveSpecZZ][GPU][SYNC] cycles=%d i=%d", cycles_out, i);
+                int st_sync = gpu_extract_cycles(detrended_data,
+                                                 InpFFTWindow,
+                                                 InpGpuTopK,
+                                                 InpGpuMinPeriod,
+                                                 InpGpuMaxPeriod,
+                                                 sample_rate_sec,
+                                                 InpGpuMethod,
+                                                 InpGpuArOrder,
+                                                 g_cycles_raw,
+                                                 stride,
+                                                 InpGpuTopK,
+                                                 cycles_out);
+                if(st_sync==ALGLIB_STATUS_OK && cycles_out>0)
+                {
+                    have_cycles = true;
+                    if(InpDebugCycles && (i%256)==0)
+                        PrintFormat("[WaveSpecZZ][GPU][SYNC] cycles=%d i=%d", cycles_out, i);
+                }
+                else
+                {
+                    if((i%256)==0)
+                        PrintFormat("[WaveSpecZZ][GPU][SYNC_FAIL] st=%d cycles=%d len=%d method=%d ar=%d", st_sync, cycles_out, InpFFTWindow, InpGpuMethod, InpGpuArOrder);
+                    continue;
+                }
             }
             else
             {
-                if((i%256)==0)
-                    PrintFormat("[WaveSpecZZ][GPU][SYNC_FAIL] st=%d cycles=%d len=%d method=%d ar=%d", st_sync, cycles_out, InpFFTWindow, InpGpuMethod, InpGpuArOrder);
+                // Sem resultado async (job falhou). Prossegue para próxima barra para evitar travar.
                 continue;
             }
         }
